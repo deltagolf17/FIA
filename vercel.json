@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npx prisma generate && next build",
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "NEXTAUTH_SECRET": "@nextauth-secret",
+    "NEXTAUTH_URL": "@nextauth-url",
+    "ANTHROPIC_API_KEY": "@anthropic-api-key"
+  }
+}

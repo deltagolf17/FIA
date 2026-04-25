@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  hashedPassword String
+  role           String   @default("FIREFIGHTER")
+  department     String?
+  badgeNumber    String?
+  certifications String?
+  phone          String?
+  avatar         String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  investigations Investigation[]
+  sessions       Session[]
+  accounts       Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Investigation {
+  id                   String   @id @default(cuid())
+  caseNumber           String   @unique
+  status               String   @default("OPEN")
+  incidentDate         DateTime
+  dispatchTime         DateTime?
+  arrivalTime          DateTime?
+  address              String
+  city                 String
+  state                String
+  zip                  String
+  lat                  Float?
+  lng                  Float?
+  structureType        String?
+  occupancyType        String?
+  numStories           Int?
+  constructionType     String?
+  buildingAge          Int?
+  weatherConditions    String?
+  windSpeed            Float?
+  windDirection        String?
+  humidity             Float?
+  temperature          Float?
+  utilitiesGas         String?
+  utilitiesElectric    String?
+  utilitiesWater       String?
+  areaOfOrigin         String?
+  pointOfOrigin        String?
+  causeCode            String?
+  causeNarrative       String?
+  firstMaterialIgnited String?
+  ignitionSource       String?
+  ignitionFactor       String?
+  fuelPackage          String?
+  fireSpread           String?
+  determination        String?
+  nfpa921Compliant     Boolean  @default(false)
+  complianceScore      Int      @default(0)
+  aiSuggestion         String?
+  notes                String?
+  investigatorId       String
+  investigator         User             @relation(fields: [investigatorId], references: [id])
+  evidence             Evidence[]
+  firePatterns         FirePattern[]
+  insuranceClaim       InsuranceClaim?
+  checklistItems       ChecklistItem[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Evidence {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  itemNumber      String
+  description     String
+  location        String
+  collectedBy     String
+  collectedAt     DateTime
+  condition       String?
+  photoUrls       String   @default("[]")
+  labSubmitted    Boolean  @default(false)
+  labSubmittedAt  DateTime?
+  labSubmittedTo  String?
+  labResults      String?
+  storageLocation String?
+  disposition     String?
+  notes           String?
+  chainOfCustody  CustodyEntry[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CustodyEntry {
+  id         String   @id @default(cuid())
+  evidenceId String
+  evidence   Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  handledBy  String
+  action     String
+  timestamp  DateTime @default(now())
+  location   String?
+  notes      String?
+  signature  String?
+}
+
+model FirePattern {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  patternType     String
+  location        String
+  description     String
+  charDepth       Float?
+  heatIndicators  String?
+  photoUrls       String   @default("[]")
+  nfpaSection     String?
+  significance    String?
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+model InsuranceClaim {
+  id              String   @id @default(cuid())
+  investigationId String   @unique
+  investigation   Investigation @relation(fields: [investigationId], references: [id])
+  claimNumber     String   @unique
+  policyNumber    String
+  insuredName     String
+  insurerName     String
+  adjusterId      String?
+  adjusterName    String?
+  adjusterEmail   String?
+  estimatedLoss   Float?
+  finalLoss       Float?
+  deductible      Float?
+  coverageType    String?
+  status          String   @default("OPEN")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ChecklistItem {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  checklistId     String
+  category        String
+  requirement     String
+  nfpaSection     String
+  completed       Boolean  @default(false)
+  completedAt     DateTime?
+  notes           String?
+}
