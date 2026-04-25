@@ -94,7 +94,9 @@ export default async function InsurancePage() {
               <tbody className="divide-y divide-slate-50">
                 {claims.map((claim) => (
                   <tr key={claim.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs font-semibold text-authority-800">{claim.claimNumber}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-authority-800">
+                      <Link href={`/insurance/${claim.id}`} className="hover:underline">{claim.claimNumber}</Link>
+                    </td>
                     <td className="px-4 py-3">
                       <Link href={`/investigations/${claim.investigationId}`} className="font-mono text-xs text-authority-700 hover:underline">
                         {claim.investigation.caseNumber}
