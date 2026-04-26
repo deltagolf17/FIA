@@ -2,16 +2,24 @@ import { prisma } from "@/lib/db";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { NFPAClassificationBadge } from "@/components/investigation/NFPAClassificationBadge";
+import { NewClaimModal } from "@/components/insurance/NewClaimModal";
 import { formatDate, formatCurrency } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
-import { Building2, DollarSign, FileText, AlertCircle } from "lucide-react";
+import { Building2, DollarSign, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
-async function getClaims() {
-  return prisma.insuranceClaim.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { investigation: { select: { caseNumber: true, causeCode: true, address: true } } },
-  });
+async function getPageData() {
+  const [claims, investigations] = await Promise.all([
+    prisma.insuranceClaim.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { investigation: { select: { caseNumber: true, causeCode: true, address: true } } },
+    }),
+    prisma.investigation.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, caseNumber: true, address: true, insuranceClaim: { select: { id: true } } },
+    }),
+  ]);
+  return { claims, investigations };
 }
 
 const CLAIM_STATUS_COLORS: Record<string, string> = {
@@ -23,13 +31,24 @@ const CLAIM_STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function InsurancePage() {
-  const claims = await getClaims();
+  const { claims, investigations } = await getPageData();
   const totalExposure = claims.reduce((sum, c) => sum + (c.estimatedLoss ?? 0), 0);
   const openClaims = claims.filter((c) => c.status === "OPEN" || c.status === "UNDER_REVIEW").length;
 
+  const investigationOptions = investigations.map((inv) => ({
+    id: inv.id,
+    caseNumber: inv.caseNumber,
+    address: inv.address,
+    hasClam: !!inv.insuranceClaim,
+  }));
+
   return (
     <div className="flex flex-col h-full">
-      <Header title="Insurance Portal" subtitle="Claims management and adjuster workflow" />
+      <Header
+        title="Insurance Portal"
+        subtitle="Claims management and adjuster workflow"
+        action={<NewClaimModal investigations={investigationOptions} />}
+      />
 
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
         {/* KPIs */}
@@ -71,10 +90,10 @@ export default async function InsurancePage() {
 
         {/* Claims table */}
         {claims.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-slate-200">
-            <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+            <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30 text-slate-400" />
             <p className="font-medium text-slate-600">No insurance claims yet</p>
-            <p className="text-sm mt-1">Claims are linked to fire investigations.</p>
+            <p className="text-sm text-slate-400 mt-1">Click &quot;New Claim&quot; to link a claim to an investigation.</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">

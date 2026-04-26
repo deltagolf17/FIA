@@ -104,6 +104,7 @@ export default async function InvestigationDetailPage({ params }: Props) {
           ignitionSource={inv.ignitionSource}
           structureType={inv.structureType}
           weatherConditions={inv.weatherConditions}
+          savedSuggestion={inv.aiSuggestion}
         />
 
         {/* Tabs */}

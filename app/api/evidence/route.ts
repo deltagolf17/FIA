@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { investigationId, itemNumber, description, location, condition, notes } = body;
+  const { investigationId, itemNumber, description, location, condition, notes, photoUrls } = body;
 
   if (!investigationId || !description) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       notes,
       collectedBy: session.user.name ?? "Unknown",
       collectedAt: new Date(),
-      photoUrls: "[]",
+      photoUrls: typeof photoUrls === "string" ? photoUrls : "[]",
       chainOfCustody: {
         create: {
           handledBy: session.user.name ?? "Unknown",

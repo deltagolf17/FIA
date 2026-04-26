@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, ChevronDown, ChevronUp, Loader2, AlertCircle } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronUp, Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface AIAssistPanelProps {
@@ -15,9 +15,11 @@ interface AIAssistPanelProps {
   ignitionSource?: string | null;
   structureType?: string | null;
   weatherConditions?: string | null;
+  savedSuggestion?: string | null;
 }
 
 export function AIAssistPanel({
+  investigationId,
   firePatterns,
   evidence,
   areaOfOrigin,
@@ -26,17 +28,21 @@ export function AIAssistPanel({
   ignitionSource,
   structureType,
   weatherConditions,
+  savedSuggestion,
 }: AIAssistPanelProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!savedSuggestion);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState(savedSuggestion ?? "");
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(!!savedSuggestion);
+  const [saving, setSaving] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   async function runAnalysis() {
     setLoading(true);
     setResult("");
     setError("");
+    setSaved(false);
 
     abortRef.current = new AbortController();
 
@@ -61,7 +67,6 @@ export function AIAssistPanel({
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
-
       if (!reader) throw new Error("No response stream");
 
       while (true) {
@@ -81,6 +86,20 @@ export function AIAssistPanel({
   function stop() {
     abortRef.current?.abort();
     setLoading(false);
+  }
+
+  async function saveToRecord() {
+    setSaving(true);
+    try {
+      await fetch(`/api/investigations/${investigationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiSuggestion: result }),
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -103,9 +122,14 @@ export function AIAssistPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {result && !loading && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-              Analysis ready
+          {saved && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Saved to record
+            </span>
+          )}
+          {result && !loading && !saved && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+              Analysis ready — unsaved
             </span>
           )}
           {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -145,14 +169,23 @@ export function AIAssistPanel({
 
           {result && (
             <div className="space-y-3">
-              <div className="bg-white border border-authority-100 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-mono text-xs">
+              <div className="bg-white border border-authority-100 rounded-xl p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-mono">
                 {result}
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={runAnalysis} className="gap-1.5">
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={runAnalysis} disabled={loading} className="gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   Re-analyze
                 </Button>
+                {!saved && (
+                  <Button size="sm" onClick={saveToRecord} disabled={saving || loading} className="gap-1.5">
+                    {saving
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Save className="w-3.5 h-3.5" />
+                    }
+                    Save to Record
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-slate-400">
                 AI suggestions are advisory only. Final determination must be made by the certified investigator per NFPA 1033.

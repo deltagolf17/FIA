@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SignatureCapture } from "./SignatureCapture";
 import { EvidenceQRLabel } from "./EvidenceQRLabel";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
-import { Package, QrCode, PenLine, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Package, QrCode, PenLine, CheckCircle2, Loader2,
+  Plus, X, Camera, Upload,
+} from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +32,7 @@ interface EvidenceItem {
   condition: string | null;
   labSubmitted: boolean;
   notes: string | null;
+  photoUrls?: string;
   chainOfCustody: CustodyEntry[];
   investigationId: string;
   caseNumber: string;
@@ -45,10 +49,232 @@ const ACTION_COLORS: Record<string, string> = {
   DESTROYED:        "bg-red-100 text-red-700",
 };
 
-export function EvidenceSection({ items }: { items: EvidenceItem[] }) {
+function parsePhotos(raw?: string): string[] {
+  try { return JSON.parse(raw ?? "[]"); } catch { return []; }
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function nextItemNumber(items: EvidenceItem[]): string {
+  return `E-${String(items.length + 1).padStart(3, "0")}`;
+}
+
+interface AddFormState {
+  description: string;
+  location: string;
+  itemNumber: string;
+  condition: string;
+  notes: string;
+}
+
+function AddEvidenceForm({
+  investigationId,
+  defaultItemNumber,
+  onSaved,
+  onCancel,
+}: {
+  investigationId: string;
+  defaultItemNumber: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState<AddFormState>({
+    description: "",
+    location: "",
+    itemNumber: defaultItemNumber,
+    condition: "",
+    notes: "",
+  });
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function set(field: keyof AddFormState, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files) return;
+    const newFiles = Array.from(files).slice(0, 5 - photos.length);
+    const urls = await Promise.all(newFiles.map(fileToDataUrl));
+    setPhotos((p) => [...p, ...newFiles]);
+    setPreviews((p) => [...p, ...urls]);
+  }
+
+  function removePhoto(i: number) {
+    setPhotos((p) => p.filter((_, idx) => idx !== i));
+    setPreviews((p) => p.filter((_, idx) => idx !== i));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.description.trim()) { setError("Description is required."); return; }
+    if (!form.location.trim()) { setError("Location is required."); return; }
+    setError("");
+    setSubmitting(true);
+    try {
+      const photoUrls = await Promise.all(photos.map(fileToDataUrl));
+      const res = await fetch("/api/evidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          investigationId,
+          itemNumber: form.itemNumber.trim() || defaultItemNumber,
+          description: form.description.trim(),
+          location: form.location.trim(),
+          condition: form.condition.trim() || null,
+          notes: form.notes.trim() || null,
+          photoUrls: JSON.stringify(photoUrls),
+        }),
+      });
+      if (!res.ok) { setError("Failed to save evidence item."); return; }
+      onSaved();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputClass =
+    "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-authority-500 focus:border-transparent";
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm font-semibold text-slate-700">New Evidence Item</p>
+        <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-600">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Row 1: item number + description */}
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1">Item #</label>
+          <input
+            value={form.itemNumber}
+            onChange={(e) => set("itemNumber", e.target.value)}
+            className={cn(inputClass, "font-mono")}
+            placeholder="E-001"
+          />
+        </div>
+        <div className="col-span-3">
+          <label className="text-xs font-medium text-slate-500 block mb-1">Description <span className="text-red-500">*</span></label>
+          <input
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+            className={inputClass}
+            placeholder="e.g. Charred electrical wire segment, ~30 cm"
+          />
+        </div>
+      </div>
+
+      {/* Row 2: location + condition */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1">Location / Collection Point <span className="text-red-500">*</span></label>
+          <input
+            value={form.location}
+            onChange={(e) => set("location", e.target.value)}
+            className={inputClass}
+            placeholder="e.g. NW corner, basement"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1">Condition</label>
+          <input
+            value={form.condition}
+            onChange={(e) => set("condition", e.target.value)}
+            className={inputClass}
+            placeholder="e.g. Heavily charred, brittle"
+          />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="text-xs font-medium text-slate-500 block mb-1">Notes</label>
+        <textarea
+          value={form.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          className={cn(inputClass, "resize-none h-16")}
+          placeholder="Additional observations, NFPA section references…"
+        />
+      </div>
+
+      {/* Photo upload */}
+      <div>
+        <label className="text-xs font-medium text-slate-500 block mb-2">
+          <Camera className="w-3.5 h-3.5 inline mr-1" />Photos (up to 5)
+        </label>
+        <div className="flex items-center gap-2 flex-wrap">
+          {previews.map((src, i) => (
+            <div key={i} className="relative group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={`Photo ${i + 1}`}
+                className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => removePhoto(i)}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          ))}
+          {photos.length < 5 && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="w-16 h-16 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:border-authority-400 hover:text-authority-500 transition-colors"
+            >
+              <Upload className="w-4 h-4 mb-0.5" />
+              <span className="text-xs">Add</span>
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+          />
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={submitting} className="gap-1.5">
+          {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          Save Evidence Item
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[] }) {
   const router = useRouter();
+  const [items] = useState(initialItems);
   const [showQR, setShowQR] = useState(false);
-  const [sigFor, setSigFor]   = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [sigFor, setSigFor] = useState<string | null>(null);
   const [sigAction, setSigAction] = useState("TRANSFERRED");
   const [saving, setSaving] = useState(false);
 
@@ -67,128 +293,182 @@ export function EvidenceSection({ items }: { items: EvidenceItem[] }) {
     }
   }
 
-  if (items.length === 0) {
+  function handleSaved() {
+    setShowForm(false);
+    router.refresh();
+  }
+
+  if (items.length === 0 && !showForm) {
     return (
-      <div className="text-center py-10 text-slate-400 bg-white rounded-xl border border-slate-200">
-        <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
-        <p className="text-sm">No evidence items recorded</p>
+      <div className="text-center py-10 bg-white rounded-xl border border-slate-200">
+        <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+        <p className="text-sm text-slate-500 mb-4">No evidence items recorded</p>
+        <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5">
+          <Plus className="w-3.5 h-3.5" />
+          Add First Evidence Item
+        </Button>
       </div>
     );
   }
 
+  const investigationId = items[0]?.investigationId ?? "";
+  const caseNumber = items[0]?.caseNumber ?? "";
+
   return (
     <div className="space-y-4">
-      {/* QR Label print section */}
+      {/* Header row */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-700">
-          Evidence & Chain of Custody ({items.length} items)
+          Evidence & Chain of Custody ({items.length} item{items.length !== 1 ? "s" : ""})
         </h3>
-        <Button size="sm" variant="outline" onClick={() => setShowQR((v) => !v)} className="gap-1.5">
-          <QrCode className="w-3.5 h-3.5" />
-          {showQR ? "Hide" : "Print QR Labels"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setShowQR((v) => !v)} className="gap-1.5">
+              <QrCode className="w-3.5 h-3.5" />
+              {showQR ? "Hide QR" : "Print QR Labels"}
+            </Button>
+          )}
+          {!showForm && (
+            <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5">
+              <Plus className="w-3.5 h-3.5" />
+              Add Evidence
+            </Button>
+          )}
+        </div>
       </div>
 
-      {showQR && (
+      {/* QR labels panel */}
+      {showQR && items.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <EvidenceQRLabel items={items} />
         </div>
       )}
 
+      {/* Add evidence inline form */}
+      {showForm && (
+        <AddEvidenceForm
+          investigationId={investigationId}
+          defaultItemNumber={nextItemNumber(items)}
+          onSaved={handleSaved}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
       {/* Evidence cards */}
       <div className="space-y-3">
-        {items.map((e) => (
-          <Card key={e.id}>
-            <CardContent className="p-4">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-authority-800">{e.itemNumber}</span>
-                    {e.labSubmitted && (
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Lab Submitted
-                      </span>
-                    )}
-                  </div>
-                  <p className="font-medium text-sm text-slate-900">{e.description}</p>
-                  {e.location && <p className="text-xs text-slate-500 mt-0.5">📍 {e.location}</p>}
-                  {e.condition && <p className="text-xs text-slate-500">Condition: {e.condition}</p>}
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-slate-500">{formatDate(e.collectedAt)}</p>
-                  <p className="text-xs text-slate-400">by {e.collectedBy}</p>
-                </div>
-              </div>
-
-              {/* Chain of custody timeline */}
-              {e.chainOfCustody.length > 0 && (
-                <div className="mb-3 pl-3 border-l-2 border-slate-200 space-y-2">
-                  {e.chainOfCustody.map((entry) => (
-                    <div key={entry.id} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-authority-400 mt-1.5 shrink-0 -ml-[0.3125rem]" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={cn(
-                            "text-xs font-semibold px-1.5 py-0.5 rounded",
-                            ACTION_COLORS[entry.action] ?? "bg-slate-100 text-slate-600"
-                          )}>
-                            {entry.action.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-xs text-slate-600">{entry.handledBy}</span>
-                          <span className="text-xs text-slate-400">{formatDateTime(entry.timestamp)}</span>
-                        </div>
-                        {entry.notes && <p className="text-xs text-slate-500 mt-0.5">{entry.notes}</p>}
-                        {entry.signature && (
-                          <img
-                            src={entry.signature}
-                            alt="Signature"
-                            className="mt-1 h-8 border border-slate-200 rounded"
-                          />
-                        )}
-                      </div>
+        {items.map((e) => {
+          const photos = parsePhotos(e.photoUrls);
+          return (
+            <Card key={e.id}>
+              <CardContent className="p-4">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-xs font-bold text-authority-800">{e.itemNumber}</span>
+                      {e.labSubmitted && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Lab Submitted
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add custody action */}
-              {sigFor === e.id ? (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="mb-3 flex items-center gap-2">
-                    <select
-                      value={sigAction}
-                      onChange={(ev) => setSigAction(ev.target.value)}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700"
-                    >
-                      {CUSTODY_ACTIONS.map((a) => (
-                        <option key={a} value={a}>{a.replace(/_/g, " ")}</option>
-                      ))}
-                    </select>
+                    <p className="font-medium text-sm text-slate-900">{e.description}</p>
+                    {e.location && <p className="text-xs text-slate-500 mt-0.5">📍 {e.location}</p>}
+                    {e.condition && <p className="text-xs text-slate-500">Condition: {e.condition}</p>}
                   </div>
-                  <SignatureCapture
-                    onCapture={(dataUrl) => addCustody(e.id, sigAction, dataUrl)}
-                    onCancel={() => setSigFor(null)}
-                  />
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-slate-500">{formatDate(e.collectedAt)}</p>
+                    <p className="text-xs text-slate-400">by {e.collectedBy}</p>
+                  </div>
                 </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-2 gap-1.5 text-xs"
-                  onClick={() => setSigFor(e.id)}
-                  disabled={saving}
-                >
-                  {saving && sigFor === e.id
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <PenLine className="w-3 h-3" />
-                  }
-                  Add Custody Entry
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+
+                {/* Photos */}
+                {photos.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {photos.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={src}
+                        alt={`Evidence photo ${i + 1}`}
+                        className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90"
+                        onClick={() => window.open(src, "_blank")}
+                      />
+                    ))}
+                    <span className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
+                  </div>
+                )}
+
+                {/* Chain of custody timeline */}
+                {e.chainOfCustody.length > 0 && (
+                  <div className="mb-3 pl-3 border-l-2 border-slate-200 space-y-2">
+                    {e.chainOfCustody.map((entry) => (
+                      <div key={entry.id} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-authority-400 mt-1.5 shrink-0 -ml-[0.3125rem]" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={cn(
+                              "text-xs font-semibold px-1.5 py-0.5 rounded",
+                              ACTION_COLORS[entry.action] ?? "bg-slate-100 text-slate-600"
+                            )}>
+                              {entry.action.replace(/_/g, " ")}
+                            </span>
+                            <span className="text-xs text-slate-600">{entry.handledBy}</span>
+                            <span className="text-xs text-slate-400">{formatDateTime(entry.timestamp)}</span>
+                          </div>
+                          {entry.notes && <p className="text-xs text-slate-500 mt-0.5">{entry.notes}</p>}
+                          {entry.signature && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={entry.signature}
+                              alt="Signature"
+                              className="mt-1 h-8 border border-slate-200 rounded"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add custody action */}
+                {sigFor === e.id ? (
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <div className="mb-3 flex items-center gap-2">
+                      <select
+                        value={sigAction}
+                        onChange={(ev) => setSigAction(ev.target.value)}
+                        className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700"
+                      >
+                        {CUSTODY_ACTIONS.map((a) => (
+                          <option key={a} value={a}>{a.replace(/_/g, " ")}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <SignatureCapture
+                      onCapture={(dataUrl) => addCustody(e.id, sigAction, dataUrl)}
+                      onCancel={() => setSigFor(null)}
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 gap-1.5 text-xs"
+                    onClick={() => setSigFor(e.id)}
+                    disabled={saving}
+                  >
+                    {saving && sigFor === e.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <PenLine className="w-3 h-3" />
+                    }
+                    Add Custody Entry
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
