@@ -31,9 +31,8 @@ export function Header({ title, subtitle, action }: HeaderProps) {
           </Button>
         </Link>
 
-        <button className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
+        <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Notifications">
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-fire-600 rounded-full" />
         </button>
 
         <button

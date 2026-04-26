@@ -1,0 +1,255 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { X, Save, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+const STRUCTURE_TYPES = [
+  "RESIDENTIAL_SINGLE", "RESIDENTIAL_MULTI", "COMMERCIAL",
+  "INDUSTRIAL", "VEHICLE", "WILDLAND", "OTHER",
+];
+
+const CONSTRUCTION_TYPES = ["TYPE_I", "TYPE_II", "TYPE_III", "TYPE_IV", "TYPE_V", "UNKNOWN"];
+const UTILITY_STATES = ["ON", "OFF", "UNKNOWN"];
+
+interface Investigation {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  incidentDate: Date | string;
+  structureType: string | null;
+  occupancyType: string | null;
+  constructionType: string | null;
+  buildingAge: number | null;
+  numStories: number | null;
+  weatherConditions: string | null;
+  temperature: number | null;
+  humidity: number | null;
+  windSpeed: number | null;
+  utilitiesGas: string | null;
+  utilitiesElectric: string | null;
+  utilitiesWater: string | null;
+}
+
+interface Props {
+  investigation: Investigation;
+  onClose: () => void;
+}
+
+const inputClass = "w-full h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-authority-500";
+
+function toDateInput(v: Date | string): string {
+  const d = typeof v === "string" ? new Date(v) : v;
+  return d.toISOString().slice(0, 10);
+}
+
+export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const [form, setForm] = useState({
+    address:          inv.address,
+    city:             inv.city,
+    state:            inv.state,
+    zip:              inv.zip,
+    incidentDate:     toDateInput(inv.incidentDate),
+    structureType:    inv.structureType ?? "",
+    occupancyType:    inv.occupancyType ?? "",
+    constructionType: inv.constructionType ?? "",
+    buildingAge:      inv.buildingAge != null ? String(inv.buildingAge) : "",
+    numStories:       inv.numStories != null ? String(inv.numStories) : "",
+    weatherConditions:inv.weatherConditions ?? "",
+    temperature:      inv.temperature != null ? String(inv.temperature) : "",
+    humidity:         inv.humidity != null ? String(inv.humidity) : "",
+    windSpeed:        inv.windSpeed != null ? String(inv.windSpeed) : "",
+    utilitiesGas:     inv.utilitiesGas ?? "UNKNOWN",
+    utilitiesElectric:inv.utilitiesElectric ?? "UNKNOWN",
+    utilitiesWater:   inv.utilitiesWater ?? "UNKNOWN",
+  });
+
+  function set(field: string, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.address.trim() || !form.city.trim() || !form.state.trim()) {
+      setError("Address, city, and state are required.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        address:          form.address.trim(),
+        city:             form.city.trim(),
+        state:            form.state.trim(),
+        zip:              form.zip.trim(),
+        incidentDate:     new Date(form.incidentDate).toISOString(),
+        structureType:    form.structureType || null,
+        occupancyType:    form.occupancyType || null,
+        constructionType: form.constructionType || null,
+        buildingAge:      form.buildingAge ? Number(form.buildingAge) : null,
+        numStories:       form.numStories  ? Number(form.numStories)  : null,
+        weatherConditions:form.weatherConditions || null,
+        temperature:      form.temperature ? Number(form.temperature) : null,
+        humidity:         form.humidity    ? Number(form.humidity)    : null,
+        windSpeed:        form.windSpeed   ? Number(form.windSpeed)   : null,
+        utilitiesGas:     form.utilitiesGas,
+        utilitiesElectric:form.utilitiesElectric,
+        utilitiesWater:   form.utilitiesWater,
+      };
+
+      const res = await fetch(`/api/investigations/${inv.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? "Failed to save changes.");
+        return;
+      }
+
+      router.refresh();
+      onClose();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h2 className="font-semibold text-slate-900">Edit Investigation Details</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
+          )}
+
+          {/* Incident */}
+          <section>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Incident</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1">
+                <Label htmlFor="address">Address *</Label>
+                <Input id="address" value={form.address} onChange={(e) => set("address", e.target.value)} required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="city">City *</Label>
+                <Input id="city" value={form.city} onChange={(e) => set("city", e.target.value)} required />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="state">State *</Label>
+                  <Input id="state" value={form.state} onChange={(e) => set("state", e.target.value)} required maxLength={2} className="uppercase" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="zip">ZIP</Label>
+                  <Input id="zip" value={form.zip} onChange={(e) => set("zip", e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="incidentDate">Incident Date *</Label>
+                <input id="incidentDate" type="date" value={form.incidentDate} onChange={(e) => set("incidentDate", e.target.value)} className={inputClass} required />
+              </div>
+            </div>
+          </section>
+
+          {/* Structure */}
+          <section>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Structure</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Structure Type</Label>
+                <select value={form.structureType} onChange={(e) => set("structureType", e.target.value)} className={inputClass}>
+                  <option value="">— Select —</option>
+                  {STRUCTURE_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="occupancyType">Occupancy Type</Label>
+                <Input id="occupancyType" value={form.occupancyType} onChange={(e) => set("occupancyType", e.target.value)} placeholder="e.g. Residential (1-2 family)" />
+              </div>
+              <div className="space-y-1">
+                <Label>Construction Type</Label>
+                <select value={form.constructionType} onChange={(e) => set("constructionType", e.target.value)} className={inputClass}>
+                  <option value="">— Select —</option>
+                  {CONSTRUCTION_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="buildingAge">Age (yrs)</Label>
+                  <Input id="buildingAge" type="number" min="0" value={form.buildingAge} onChange={(e) => set("buildingAge", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="numStories">Stories</Label>
+                  <Input id="numStories" type="number" min="1" value={form.numStories} onChange={(e) => set("numStories", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Weather */}
+          <section>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Weather Conditions</p>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="col-span-2 space-y-1">
+                <Label htmlFor="weatherConditions">Conditions</Label>
+                <Input id="weatherConditions" value={form.weatherConditions} onChange={(e) => set("weatherConditions", e.target.value)} placeholder="e.g. Clear, Overcast, Rain" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="temperature">Temp (°F)</Label>
+                <Input id="temperature" type="number" value={form.temperature} onChange={(e) => set("temperature", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="humidity">Humidity (%)</Label>
+                <Input id="humidity" type="number" min="0" max="100" value={form.humidity} onChange={(e) => set("humidity", e.target.value)} />
+              </div>
+            </div>
+          </section>
+
+          {/* Utilities */}
+          <section>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Utilities at Time of Fire</p>
+            <div className="grid grid-cols-3 gap-3">
+              {(["utilitiesGas", "utilitiesElectric", "utilitiesWater"] as const).map((key) => (
+                <div key={key} className="space-y-1">
+                  <Label>{key.replace("utilities", "")}</Label>
+                  <select value={form[key]} onChange={(e) => set(key, e.target.value)} className={inputClass}>
+                    {UTILITY_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={saving} className="flex-1 bg-authority-700 hover:bg-authority-800 gap-1.5">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

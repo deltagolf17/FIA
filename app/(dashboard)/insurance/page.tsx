@@ -3,23 +3,41 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { NFPAClassificationBadge } from "@/components/investigation/NFPAClassificationBadge";
 import { NewClaimModal } from "@/components/insurance/NewClaimModal";
+import { InsuranceSearchBar } from "@/components/insurance/InsuranceSearchBar";
 import { formatDate, formatCurrency } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
 import { Building2, DollarSign, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
 
 const PAGE_SIZE = 20;
 
-async function getPageData(page: number) {
+const CLAIM_STATUSES = ["OPEN", "UNDER_REVIEW", "APPROVED", "DENIED", "CLOSED"] as const;
+
+interface PageParams { page?: string; q?: string; status?: string }
+
+async function getPageData(page: number, q?: string, status?: string) {
+  const where: Record<string, unknown> = {};
+  if (status) where.status = status;
+  if (q) {
+    where.OR = [
+      { claimNumber:  { contains: q } },
+      { insuredName:  { contains: q } },
+      { insurerName:  { contains: q } },
+      { policyNumber: { contains: q } },
+    ];
+  }
+
   const [claims, totalClaims, investigations] = await Promise.all([
     prisma.insuranceClaim.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: { investigation: { select: { caseNumber: true, causeCode: true, address: true } } },
     }),
-    prisma.insuranceClaim.count(),
+    prisma.insuranceClaim.count({ where }),
     prisma.investigation.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, caseNumber: true, address: true, insuranceClaim: { select: { id: true } } },
@@ -36,14 +54,26 @@ const CLAIM_STATUS_COLORS: Record<string, string> = {
   CLOSED:       "bg-slate-100 text-slate-600",
 };
 
+function filterHref(key: string, value: string, current: PageParams): string {
+  const p = new URLSearchParams();
+  const next: PageParams = key === "page"
+    ? { ...current, page: value }
+    : { ...current, [key]: value, page: "1" };
+  if (next.q)                        p.set("q",      next.q);
+  if (next.status)                   p.set("status", next.status);
+  if (next.page && next.page !== "1") p.set("page",   next.page);
+  const qs = p.toString();
+  return qs ? `/insurance?${qs}` : "/insurance";
+}
+
 export default async function InsurancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<PageParams>;
 }) {
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10));
-  const { claims, totalClaims, totalPages, investigations } = await getPageData(page);
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page ?? "1", 10));
+  const { claims, totalClaims, totalPages, investigations } = await getPageData(page, params.q, params.status);
   const totalExposure = claims.reduce((sum, c) => sum + (c.estimatedLoss ?? 0), 0);
   const investigationOptions = investigations.map((inv) => ({
     id: inv.id,
@@ -98,6 +128,29 @@ export default async function InsurancePage({
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Search + filter */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Suspense fallback={null}>
+            <InsuranceSearchBar />
+          </Suspense>
+          <div className="flex gap-1.5 flex-wrap">
+            {(["", ...CLAIM_STATUSES] as const).map((s) => (
+              <Link
+                key={s || "ALL"}
+                href={filterHref("status", s, params)}
+                className={cn(
+                  "text-xs px-3 py-1.5 rounded-full border font-medium transition-colors",
+                  params.status === s || (!params.status && s === "")
+                    ? "bg-authority-800 text-white border-authority-800"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-authority-300 hover:text-authority-800"
+                )}
+              >
+                {s === "" ? "All" : s.replace("_", " ")}
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* Claims table */}
@@ -162,12 +215,12 @@ export default async function InsurancePage({
             </span>
             <div className="flex items-center gap-1">
               {page > 1 && (
-                <Link href={`/insurance?page=${page - 1}`}>
+                <Link href={filterHref("page", String(page - 1), params)}>
                   <Button variant="outline" size="sm">← Prev</Button>
                 </Link>
               )}
               {page < totalPages && (
-                <Link href={`/insurance?page=${page + 1}`}>
+                <Link href={filterHref("page", String(page + 1), params)}>
                   <Button variant="outline" size="sm">Next →</Button>
                 </Link>
               )}

@@ -64,6 +64,10 @@ export function AIAssistPanel({
         signal: abortRef.current.signal,
       });
 
+      if (res.status === 429) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Rate limit exceeded. Please wait before trying again.");
+      }
       if (!res.ok) throw new Error("AI analysis failed");
 
       const reader = res.body?.getReader();

@@ -15,8 +15,19 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
-  const allowed = ["status", "causeCode", "notes", "areaOfOrigin", "pointOfOrigin",
-    "causeNarrative", "determination", "nfpa921Compliant", "aiSuggestion"];
+  const allowed = [
+    // workflow fields
+    "status", "causeCode", "notes", "areaOfOrigin", "pointOfOrigin",
+    "causeNarrative", "determination", "nfpa921Compliant", "aiSuggestion",
+    "firstMaterialIgnited", "ignitionSource", "ignitionFactor", "fuelPackage",
+    // editable scene / incident fields
+    "address", "city", "state", "zip", "incidentDate", "dispatchTime", "arrivalTime",
+    "structureType", "occupancyType", "constructionType", "buildingAge", "numStories",
+    "weatherConditions", "temperature", "humidity", "windSpeed",
+    "utilitiesGas", "utilitiesElectric", "utilitiesWater",
+    // re-assignment (handled with privilege check below)
+    "investigatorId",
+  ];
 
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -25,6 +36,17 @@ export async function PATCH(
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  // Re-assignment requires supervisor or admin
+  if ("investigatorId" in data) {
+    const actor = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      select: { role: true },
+    });
+    if (actor?.role !== "ADMIN" && actor?.role !== "SUPERVISOR") {
+      return NextResponse.json({ error: "Only supervisors and admins can reassign investigators" }, { status: 403 });
+    }
   }
 
   // Fetch current state before update to detect transitions

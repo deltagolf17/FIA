@@ -8,7 +8,7 @@ import { EvidenceQRLabel } from "./EvidenceQRLabel";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
 import {
   Package, QrCode, PenLine, CheckCircle2, Loader2,
-  Plus, X, Camera, Upload,
+  Plus, X, Camera, Upload, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
@@ -291,6 +291,18 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
   const [sigFor, setSigFor] = useState<string | null>(null);
   const [sigAction, setSigAction] = useState("TRANSFERRED");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this evidence item and all custody entries? This cannot be undone.")) return;
+    setDeleting(id);
+    try {
+      await fetch(`/api/evidence/${id}`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function addCustody(evidenceId: string, action: string, signature?: string) {
     setSaving(true);
@@ -390,9 +402,20 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
                     {e.location && <p className="text-xs text-slate-500 mt-0.5">📍 {e.location}</p>}
                     {e.condition && <p className="text-xs text-slate-500">Condition: {e.condition}</p>}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
                     <p className="text-xs text-slate-500">{formatDate(e.collectedAt)}</p>
                     <p className="text-xs text-slate-400">by {e.collectedBy}</p>
+                    <button
+                      onClick={() => handleDelete(e.id)}
+                      disabled={deleting === e.id}
+                      className="mt-1 p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors"
+                      title="Delete evidence item"
+                    >
+                      {deleting === e.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />
+                      }
+                    </button>
                   </div>
                 </div>
 

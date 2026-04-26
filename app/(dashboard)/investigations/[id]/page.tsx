@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { Header } from "@/components/layout/Header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CaseTimeline } from "@/components/investigation/CaseTimeline";
 import { FirePatternsSection } from "@/components/investigation/FirePatternsSection";
+import { EditInvestigationButton } from "@/components/investigation/EditInvestigationButton";
+import { ReassignInvestigatorButton } from "@/components/investigation/ReassignInvestigatorButton";
 
 async function getInvestigation(id: string) {
   return prisma.investigation.findUnique({
@@ -36,8 +39,14 @@ interface Props {
 
 export default async function InvestigationDetailPage({ params }: Props) {
   const { id } = await params;
-  const inv = await getInvestigation(id);
+  const [inv, session] = await Promise.all([getInvestigation(id), auth()]);
   if (!inv) notFound();
+
+  const actorEmail = session?.user?.email;
+  const actor = actorEmail
+    ? await prisma.user.findUnique({ where: { email: actorEmail }, select: { role: true } })
+    : null;
+  const canReassign = ["SUPERVISOR", "ADMIN"].includes(actor?.role ?? "");
 
   const checklistCompleted = inv.checklistItems.filter((c) => c.completed).length;
   const checklistTotal = inv.checklistItems.length;
@@ -66,6 +75,13 @@ export default async function InvestigationDetailPage({ params }: Props) {
             {formatDate(inv.incidentDate)}
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <EditInvestigationButton investigation={inv} />
+            {canReassign && (
+              <ReassignInvestigatorButton
+                investigationId={inv.id}
+                currentInvestigatorId={inv.investigatorId}
+              />
+            )}
             <div className="flex items-center gap-2 text-xs">
               <span className="text-slate-500">NFPA 921</span>
               <span className={cn(

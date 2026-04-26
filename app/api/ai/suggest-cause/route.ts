@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -10,6 +11,16 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
+  // Rate limit: 10 AI requests per user per hour
+  const rateKey = `ai:${session.user.email}`;
+  const { allowed, retryAfterMs } = checkRateLimit(rateKey, 10, 60 * 60 * 1000);
+  if (!allowed) {
+    return new Response(
+      JSON.stringify({ error: `Rate limit exceeded. Try again in ${Math.ceil(retryAfterMs / 60000)} minute(s).` }),
+      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    );
   }
 
   const { firePatterns, evidence, areaOfOrigin, pointOfOrigin, firstMaterialIgnited, ignitionSource, structureType, weatherConditions } = await req.json();

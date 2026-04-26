@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FIRE_PATTERN_TYPES } from "@/lib/nfpa/nfpa921";
-import { Flame, Plus, X, Trash2, Loader2 } from "lucide-react";
+import { Flame, Plus, X, Trash2, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface FirePattern {
@@ -27,22 +27,25 @@ interface Props {
 const inputClass =
   "w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-authority-500 focus:border-transparent";
 
-function AddPatternForm({
+function PatternForm({
   investigationId,
+  editTarget,
   onSaved,
   onCancel,
 }: {
-  investigationId: string;
+  investigationId?: string;
+  editTarget?: FirePattern;
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const isEdit = !!editTarget;
   const [form, setForm] = useState({
-    patternType: "V_PATTERN",
-    location: "",
-    description: "",
-    charDepth: "",
-    significance: "",
-    notes: "",
+    patternType: editTarget?.patternType ?? "V_PATTERN",
+    location: editTarget?.location ?? "",
+    description: editTarget?.description ?? "",
+    charDepth: editTarget?.charDepth != null ? String(editTarget.charDepth) : "",
+    significance: editTarget?.significance ?? "",
+    notes: editTarget?.notes ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -60,11 +63,13 @@ function AddPatternForm({
     setError("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/firepatterns", {
-        method: "POST",
+      const url = isEdit ? `/api/firepatterns/${editTarget!.id}` : "/api/firepatterns";
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          investigationId,
+          ...(isEdit ? {} : { investigationId }),
           patternType: form.patternType,
           location: form.location.trim(),
           description: form.description.trim(),
@@ -84,7 +89,7 @@ function AddPatternForm({
   return (
     <form onSubmit={handleSubmit} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-700">New Fire Pattern</p>
+        <p className="text-sm font-semibold text-slate-700">{isEdit ? "Edit Fire Pattern" : "New Fire Pattern"}</p>
         <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-600">
           <X className="w-4 h-4" />
         </button>
@@ -178,7 +183,7 @@ function AddPatternForm({
         </Button>
         <Button type="submit" size="sm" disabled={submitting} className="gap-1.5">
           {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-          Add Pattern
+          {isEdit ? "Save Changes" : "Add Pattern"}
         </Button>
       </div>
     </form>
@@ -187,7 +192,8 @@ function AddPatternForm({
 
 export function FirePatternsSection({ patterns: initial, investigationId }: Props) {
   const router = useRouter();
-  const [showForm, setShowForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
@@ -202,11 +208,12 @@ export function FirePatternsSection({ patterns: initial, investigationId }: Prop
   }
 
   function handleSaved() {
-    setShowForm(false);
+    setShowAddForm(false);
+    setEditingId(null);
     router.refresh();
   }
 
-  if (initial.length === 0 && !showForm) {
+  if (initial.length === 0 && !showAddForm) {
     return (
       <div className="space-y-3">
         <div className="text-center py-10 text-slate-400 bg-white rounded-xl border border-slate-200">
@@ -214,7 +221,7 @@ export function FirePatternsSection({ patterns: initial, investigationId }: Prop
           <p className="text-sm">No fire patterns documented</p>
           <p className="text-xs mt-1 text-slate-400">Add patterns observed at the scene</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(true)} className="gap-1.5">
+        <Button size="sm" variant="outline" onClick={() => setShowAddForm(true)} className="gap-1.5">
           <Plus className="w-3.5 h-3.5" />
           Add Fire Pattern
         </Button>
@@ -225,63 +232,79 @@ export function FirePatternsSection({ patterns: initial, investigationId }: Prop
   return (
     <div className="space-y-3">
       {initial.map((p, i) => (
-        <Card key={p.id} className="group">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium bg-fire-100 text-fire-800 px-2 py-0.5 rounded-full">
-                  {p.patternType.replace(/_/g, " ")}
-                </span>
-                {p.nfpaSection && (
-                  <span className="text-xs text-authority-600 bg-authority-50 px-2 py-0.5 rounded">
-                    {p.nfpaSection}
+        editingId === p.id ? (
+          <PatternForm
+            key={p.id}
+            editTarget={p}
+            onSaved={handleSaved}
+            onCancel={() => setEditingId(null)}
+          />
+        ) : (
+          <Card key={p.id} className="group">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium bg-fire-100 text-fire-800 px-2 py-0.5 rounded-full">
+                    {p.patternType.replace(/_/g, " ")}
                   </span>
-                )}
+                  {p.nfpaSection && (
+                    <span className="text-xs text-authority-600 bg-authority-50 px-2 py-0.5 rounded">
+                      {p.nfpaSection}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-400 mr-1">Pattern #{i + 1}</span>
+                  <button
+                    onClick={() => { setEditingId(p.id); setShowAddForm(false); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-authority-50 text-slate-400 hover:text-authority-600 transition-all"
+                    title="Edit pattern"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    disabled={deleting === p.id}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all"
+                    title="Delete pattern"
+                  >
+                    {deleting === p.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />
+                    }
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Pattern #{i + 1}</span>
-                <button
-                  onClick={() => handleDelete(p.id)}
-                  disabled={deleting === p.id}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all"
-                  title="Delete pattern"
-                >
-                  {deleting === p.id
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <Trash2 className="w-3.5 h-3.5" />
-                  }
-                </button>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mb-1">
-              Location: <span className="text-slate-700 font-medium">{p.location}</span>
-            </p>
-            <p className="text-sm text-slate-700">{p.description}</p>
-            {p.charDepth != null && (
-              <p className="text-xs text-slate-500 mt-2">
-                Char depth: <span className="font-medium">{p.charDepth} mm</span>
+              <p className="text-xs text-slate-500 mb-1">
+                Location: <span className="text-slate-700 font-medium">{p.location}</span>
               </p>
-            )}
-            {p.significance && (
-              <div className="mt-2 pt-2 border-t border-slate-100">
-                <p className="text-xs text-slate-500">Significance: {p.significance}</p>
-              </div>
-            )}
-            {p.notes && (
-              <p className="text-xs text-slate-400 mt-1">Notes: {p.notes}</p>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-sm text-slate-700">{p.description}</p>
+              {p.charDepth != null && (
+                <p className="text-xs text-slate-500 mt-2">
+                  Char depth: <span className="font-medium">{p.charDepth} mm</span>
+                </p>
+              )}
+              {p.significance && (
+                <div className="mt-2 pt-2 border-t border-slate-100">
+                  <p className="text-xs text-slate-500">Significance: {p.significance}</p>
+                </div>
+              )}
+              {p.notes && (
+                <p className="text-xs text-slate-400 mt-1">Notes: {p.notes}</p>
+              )}
+            </CardContent>
+          </Card>
+        )
       ))}
 
-      {showForm ? (
-        <AddPatternForm
+      {showAddForm ? (
+        <PatternForm
           investigationId={investigationId}
           onSaved={handleSaved}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => setShowAddForm(false)}
         />
       ) : (
-        <Button size="sm" variant="outline" onClick={() => setShowForm(true)} className="gap-1.5">
+        <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); setEditingId(null); }} className="gap-1.5">
           <Plus className="w-3.5 h-3.5" />
           Add Fire Pattern
         </Button>

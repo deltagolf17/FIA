@@ -74,7 +74,7 @@ function NavContent({ onClose }: { onClose?: () => void }) {
 
       {/* User footer */}
       <div className="px-4 py-4 border-t border-authority-700">
-        <div className="flex items-center gap-3">
+        <Link href="/profile" onClick={onClose} className="flex items-center gap-3 rounded-lg hover:bg-authority-800 px-1 py-1.5 transition-colors group">
           <div className="w-8 h-8 rounded-full bg-fire-600 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
             {session?.user?.name?.charAt(0) ?? "U"}
           </div>
@@ -84,8 +84,8 @@ function NavContent({ onClose }: { onClose?: () => void }) {
               {role.toLowerCase().replace("_", " ")}
             </p>
           </div>
-          <Shield className="w-4 h-4 text-authority-400 shrink-0" />
-        </div>
+          <Shield className="w-4 h-4 text-authority-400 shrink-0 group-hover:text-white transition-colors" />
+        </Link>
       </div>
     </div>
   );
