@@ -55,28 +55,54 @@ Based on this data, provide:
 
 Keep your response concise and focused on NFPA 921 methodology. Do not speculate beyond the documented evidence.`;
 
-  const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    messages: [{ role: "user", content: prompt }],
-    system: "You are a fire investigation expert assistant trained on NFPA 921 and NFPA 1033 standards. Provide concise, evidence-based analysis.",
-  });
+  const TIMEOUT_MS = 30_000;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      for await (const chunk of stream) {
-        if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-          controller.enqueue(new TextEncoder().encode(chunk.delta.text));
+  try {
+    const stream = await anthropic.messages.stream(
+      {
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+        system: "You are a fire investigation expert assistant trained on NFPA 921 and NFPA 1033 standards. Provide concise, evidence-based analysis.",
+      },
+      { signal: abort.signal }
+    );
+
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+              controller.enqueue(new TextEncoder().encode(chunk.delta.text));
+            }
+          }
+        } catch (e) {
+          controller.error(e);
+        } finally {
+          clearTimeout(timer);
+          controller.close();
         }
-      }
-      controller.close();
-    },
-  });
+      },
+      cancel() {
+        abort.abort();
+        clearTimeout(timer);
+      },
+    });
 
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked",
-    },
-  });
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+      },
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    const isTimeout = abort.signal.aborted;
+    return new Response(
+      JSON.stringify({ error: isTimeout ? "Analysis timed out after 30 seconds." : "AI analysis failed." }),
+      { status: isTimeout ? 408 : 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }

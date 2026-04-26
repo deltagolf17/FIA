@@ -36,6 +36,7 @@ export function AIAssistPanel({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(!!savedSuggestion);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   async function runAnalysis() {
@@ -90,13 +91,20 @@ export function AIAssistPanel({
 
   async function saveToRecord() {
     setSaving(true);
+    setSaveError("");
     try {
-      await fetch(`/api/investigations/${investigationId}`, {
+      const res = await fetch(`/api/investigations/${investigationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aiSuggestion: result }),
       });
-      setSaved(true);
+      if (!res.ok) {
+        setSaveError("Failed to save — please try again.");
+      } else {
+        setSaved(true);
+      }
+    } catch {
+      setSaveError("Network error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -178,13 +186,20 @@ export function AIAssistPanel({
                   Re-analyze
                 </Button>
                 {!saved && (
-                  <Button size="sm" onClick={saveToRecord} disabled={saving || loading} className="gap-1.5">
-                    {saving
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Save className="w-3.5 h-3.5" />
-                    }
-                    Save to Record
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    <Button size="sm" onClick={saveToRecord} disabled={saving || loading} className="gap-1.5">
+                      {saving
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Save className="w-3.5 h-3.5" />
+                      }
+                      Save to Record
+                    </Button>
+                    {saveError && (
+                      <p className="text-[11px] text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />{saveError}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
               <p className="text-xs text-slate-400">

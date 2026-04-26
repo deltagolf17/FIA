@@ -11,13 +11,17 @@ import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 import { Suspense } from "react";
 
+const PAGE_SIZE = 25;
+
 interface SearchParams {
   status?: string;
   cause?: string;
   q?: string;
+  page?: string;
 }
 
 async function getInvestigations(p: SearchParams) {
+  const page = Math.max(1, parseInt(p.page ?? "1", 10));
   const where: Record<string, unknown> = {};
   if (p.status) where.status = p.status;
   if (p.cause) where.causeCode = p.cause;
@@ -28,16 +32,22 @@ async function getInvestigations(p: SearchParams) {
       { city:       { contains: p.q } },
     ];
   }
-  return prisma.investigation.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true, caseNumber: true, address: true, city: true, state: true,
-      status: true, causeCode: true, complianceScore: true, createdAt: true,
-      investigator: { select: { name: true } },
-      _count: { select: { evidence: true } },
-    },
-  });
+  const [items, total] = await Promise.all([
+    prisma.investigation.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+      select: {
+        id: true, caseNumber: true, address: true, city: true, state: true,
+        status: true, causeCode: true, complianceScore: true, createdAt: true,
+        investigator: { select: { name: true } },
+        _count: { select: { evidence: true } },
+      },
+    }),
+    prisma.investigation.count({ where }),
+  ]);
+  return { items, total, page, totalPages: Math.ceil(total / PAGE_SIZE) };
 }
 
 const STATUS_FILTERS = [
@@ -66,19 +76,29 @@ function filterHref(key: string, value: string, current: SearchParams): string {
   return qs ? `/investigations?${qs}` : "/investigations";
 }
 
+function pageHref(page: number, params: SearchParams): string {
+  const p = new URLSearchParams();
+  if (params.status) p.set("status", params.status);
+  if (params.cause)  p.set("cause",  params.cause);
+  if (params.q)      p.set("q",      params.q);
+  if (page > 1)      p.set("page",   String(page));
+  const qs = p.toString();
+  return qs ? `/investigations?${qs}` : "/investigations";
+}
+
 export default async function InvestigationsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const investigations = await getInvestigations(params);
+  const { items: investigations, total, page, totalPages } = await getInvestigations(params);
 
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Investigations"
-        subtitle={`${investigations.length} case${investigations.length !== 1 ? "s" : ""}`}
+        subtitle={`${total} case${total !== 1 ? "s" : ""}`}
       />
 
       <div className="flex-1 p-6 space-y-4 overflow-y-auto">
@@ -238,6 +258,49 @@ export default async function InvestigationsPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+            </span>
+            <div className="flex items-center gap-1">
+              {page > 1 && (
+                <Link href={pageHref(page - 1, params)}>
+                  <Button variant="outline" size="sm">← Prev</Button>
+                </Link>
+              )}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                .reduce<(number | "…")[]>((acc, n, i, arr) => {
+                  if (i > 0 && (n as number) - (arr[i - 1] as number) > 1) acc.push("…");
+                  acc.push(n);
+                  return acc;
+                }, [])
+                .map((n, i) =>
+                  n === "…" ? (
+                    <span key={`ellipsis-${i}`} className="px-2">…</span>
+                  ) : (
+                    <Link key={n} href={pageHref(n as number, params)}>
+                      <Button
+                        variant={n === page ? "default" : "outline"}
+                        size="sm"
+                        className={n === page ? "bg-authority-800 text-white" : ""}
+                      >
+                        {n}
+                      </Button>
+                    </Link>
+                  )
+                )}
+              {page < totalPages && (
+                <Link href={pageHref(page + 1, params)}>
+                  <Button variant="outline" size="sm">Next →</Button>
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </div>

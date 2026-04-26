@@ -7,19 +7,25 @@ import { formatDate, formatCurrency } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
 import { Building2, DollarSign, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-async function getPageData() {
-  const [claims, investigations] = await Promise.all([
+const PAGE_SIZE = 20;
+
+async function getPageData(page: number) {
+  const [claims, totalClaims, investigations] = await Promise.all([
     prisma.insuranceClaim.findMany({
       orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
       include: { investigation: { select: { caseNumber: true, causeCode: true, address: true } } },
     }),
+    prisma.insuranceClaim.count(),
     prisma.investigation.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, caseNumber: true, address: true, insuranceClaim: { select: { id: true } } },
     }),
   ]);
-  return { claims, investigations };
+  return { claims, totalClaims, totalPages: Math.ceil(totalClaims / PAGE_SIZE), investigations };
 }
 
 const CLAIM_STATUS_COLORS: Record<string, string> = {
@@ -30,17 +36,23 @@ const CLAIM_STATUS_COLORS: Record<string, string> = {
   CLOSED:       "bg-slate-100 text-slate-600",
 };
 
-export default async function InsurancePage() {
-  const { claims, investigations } = await getPageData();
+export default async function InsurancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10));
+  const { claims, totalClaims, totalPages, investigations } = await getPageData(page);
   const totalExposure = claims.reduce((sum, c) => sum + (c.estimatedLoss ?? 0), 0);
-  const openClaims = claims.filter((c) => c.status === "OPEN" || c.status === "UNDER_REVIEW").length;
-
   const investigationOptions = investigations.map((inv) => ({
     id: inv.id,
     caseNumber: inv.caseNumber,
     address: inv.address,
     hasClam: !!inv.insuranceClaim,
   }));
+
+  const openClaims = claims.filter((c) => c.status === "OPEN" || c.status === "UNDER_REVIEW").length;
 
   return (
     <div className="flex flex-col h-full">
@@ -139,6 +151,27 @@ export default async function InsurancePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalClaims)} of {totalClaims} claims
+            </span>
+            <div className="flex items-center gap-1">
+              {page > 1 && (
+                <Link href={`/insurance?page=${page - 1}`}>
+                  <Button variant="outline" size="sm">← Prev</Button>
+                </Link>
+              )}
+              {page < totalPages && (
+                <Link href={`/insurance?page=${page + 1}`}>
+                  <Button variant="outline" size="sm">Next →</Button>
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NFPAClassificationBadge } from "@/components/investigation/NFPAClassificationBadge";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
-import { Download, Printer, Eye, FileText, Flame, Package, Shield, CheckCircle } from "lucide-react";
+import { Download, Printer, FileText, Flame, Package, Shield, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface Investigation {
@@ -67,32 +67,55 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
   const [sections, setSections] = useState<Record<string, boolean>>(
     Object.fromEntries(SECTIONS.map((s) => [s.id, true]))
   );
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
 
   function toggleSection(id: string) {
     setSections((s) => ({ ...s, [id]: !s[id] }));
   }
 
-  async function handlePrint() {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
+  function handlePrint() {
+    if (typeof window !== "undefined") window.print();
   }
 
   async function handlePDF() {
     if (typeof window === "undefined") return;
-    const { default: jsPDF } = await import("jspdf");
-    const { default: html2canvas } = await import("html2canvas");
-    const el = printRef.current;
-    if (!el) return;
+    setPdfLoading(true);
+    setPdfError("");
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const el = printRef.current;
+      if (!el) throw new Error("Report element not found");
 
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${inv.caseNumber}-report.pdf`);
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      // Multi-page: split if content exceeds one page
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      if (pdfHeight <= pageHeight) {
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      } else {
+        let yOffset = 0;
+        while (yOffset < pdfHeight) {
+          pdf.addImage(imgData, "PNG", 0, -yOffset, pdfWidth, pdfHeight);
+          yOffset += pageHeight;
+          if (yOffset < pdfHeight) pdf.addPage();
+        }
+      }
+
+      pdf.save(`${inv.caseNumber}-report.pdf`);
+    } catch (e) {
+      setPdfError(`PDF export failed: ${(e as Error).message}`);
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   return (
@@ -115,10 +138,19 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
         </div>
 
         <div className="mt-6 space-y-2">
-          <Button size="sm" className="w-full" onClick={handlePDF}>
-            <Download className="w-3.5 h-3.5" />
-            Export PDF
+          <Button size="sm" className="w-full" onClick={handlePDF} disabled={pdfLoading}>
+            {pdfLoading
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Download className="w-3.5 h-3.5" />
+            }
+            {pdfLoading ? "Generating…" : "Export PDF"}
           </Button>
+          {pdfError && (
+            <div className="flex items-start gap-1.5 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+              <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+              {pdfError}
+            </div>
+          )}
           <Button size="sm" variant="outline" className="w-full no-print" onClick={handlePrint}>
             <Printer className="w-3.5 h-3.5" />
             Print

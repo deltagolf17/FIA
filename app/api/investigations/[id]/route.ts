@@ -114,3 +114,28 @@ export async function GET(
 
   return NextResponse.json(investigation);
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const actor = await prisma.user.findUnique({
+    where: { email: session.user.email! },
+    select: { role: true },
+  });
+
+  if (actor?.role !== "ADMIN" && actor?.role !== "SUPERVISOR") {
+    return NextResponse.json({ error: "Forbidden — only supervisors and admins can delete investigations" }, { status: 403 });
+  }
+
+  const { id } = await params;
+
+  const exists = await prisma.investigation.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.investigation.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}

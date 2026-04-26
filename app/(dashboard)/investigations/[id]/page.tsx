@@ -11,10 +11,11 @@ import { StatusDropdown } from "@/components/investigation/StatusDropdown";
 import { getStatusColor } from "@/lib/nfpa/nfpa921";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
-import { MapPin, Calendar, User, Building, FileText, Package, Flame, Clock } from "lucide-react";
+import { MapPin, Calendar, User, Building, FileText, Flame, Clock } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CaseTimeline } from "@/components/investigation/CaseTimeline";
+import { FirePatternsSection } from "@/components/investigation/FirePatternsSection";
 
 async function getInvestigation(id: string) {
   return prisma.investigation.findUnique({
@@ -226,48 +227,7 @@ export default async function InvestigationDetailPage({ params }: Props) {
 
           {/* FIRE PATTERNS */}
           <TabsContent value="patterns">
-            <div className="space-y-3">
-              {inv.firePatterns.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 bg-white rounded-xl border border-slate-200">
-                  <Flame className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No fire patterns documented</p>
-                </div>
-              ) : (
-                inv.firePatterns.map((p, i) => (
-                  <Card key={p.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium bg-fire-100 text-fire-800 px-2 py-0.5 rounded-full">
-                            {p.patternType.replace(/_/g, " ")}
-                          </span>
-                          {p.nfpaSection && (
-                            <span className="text-xs text-authority-600 bg-authority-50 px-2 py-0.5 rounded">
-                              {p.nfpaSection}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-slate-400">Pattern #{i + 1}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 mb-1">
-                        Location: <span className="text-slate-700 font-medium">{p.location}</span>
-                      </p>
-                      <p className="text-sm text-slate-700">{p.description}</p>
-                      {p.charDepth && (
-                        <p className="text-xs text-slate-500 mt-2">
-                          Char depth: <span className="font-medium">{p.charDepth} mm</span>
-                        </p>
-                      )}
-                      {p.significance && (
-                        <div className="mt-2 pt-2 border-t border-slate-100">
-                          <p className="text-xs text-slate-500">Significance: {p.significance}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            <FirePatternsSection patterns={inv.firePatterns} investigationId={inv.id} />
           </TabsContent>
 
           {/* NFPA CHECKLIST */}
