@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, CheckCircle, XCircle } from "lucide-react";
+import { UserPlus, CheckCircle, XCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateUserModal } from "./CreateUserModal";
+import { EditUserModal } from "./EditUserModal";
 import { cn } from "@/lib/utils/cn";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -36,6 +37,7 @@ interface Props {
 export function UserManagementClient({ users, count }: Props) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
   async function toggleActive(userId: string, current: boolean) {
@@ -55,6 +57,7 @@ export function UserManagementClient({ users, count }: Props) {
   return (
     <>
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} />}
+      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />}
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
@@ -85,7 +88,7 @@ export function UserManagementClient({ users, count }: Props) {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+              <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-authority-100 rounded-full flex items-center justify-center text-xs font-bold text-authority-700 uppercase">
@@ -117,18 +120,27 @@ export function UserManagementClient({ users, count }: Props) {
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(user.createdAt as string)}</td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleActive(user.id, user.isActive)}
-                    disabled={toggling === user.id}
-                    className={cn(
-                      "text-xs px-2 py-1 rounded-md transition-colors",
-                      user.isActive
-                        ? "bg-red-50 text-red-600 hover:bg-red-100"
-                        : "bg-green-50 text-green-700 hover:bg-green-100"
-                    )}
-                  >
-                    {toggling === user.id ? "…" : user.isActive ? "Deactivate" : "Activate"}
-                  </button>
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingUser(user)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-authority-700"
+                      title="Edit user"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toggleActive(user.id, user.isActive)}
+                      disabled={toggling === user.id}
+                      className={cn(
+                        "text-xs px-2 py-1 rounded-md transition-colors",
+                        user.isActive
+                          ? "bg-red-50 text-red-600 hover:bg-red-100"
+                          : "bg-green-50 text-green-700 hover:bg-green-100"
+                      )}
+                    >
+                      {toggling === user.id ? "…" : user.isActive ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
