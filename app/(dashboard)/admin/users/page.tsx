@@ -8,7 +8,7 @@ async function getUsers() {
     orderBy: { createdAt: "desc" },
     select: {
       id: true, name: true, email: true, role: true,
-      department: true, badgeNumber: true, isActive: true, createdAt: true,
+      department: true, badgeNumber: true, certifications: true, isActive: true, createdAt: true,
       _count: { select: { investigations: true } },
     },
   });

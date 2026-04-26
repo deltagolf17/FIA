@@ -22,6 +22,7 @@ interface User {
   role: string;
   department: string | null;
   badgeNumber: string | null;
+  certifications: string | null;
 }
 
 interface Props {
@@ -41,7 +42,7 @@ export function EditUserModal({ user, onClose }: Props) {
     role:           user.role,
     department:     user.department ?? "",
     badgeNumber:    user.badgeNumber ?? "",
-    certifications: "",
+    certifications: user.certifications ?? "",
     newPassword:    "",
   });
 

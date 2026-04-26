@@ -24,6 +24,7 @@ interface User {
   role: string;
   department: string | null;
   badgeNumber: string | null;
+  certifications: string | null;
   isActive: boolean;
   createdAt: Date | string;
   _count: { investigations: number };

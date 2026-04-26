@@ -11,6 +11,7 @@ import {
   Calendar, MapPin, Package, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
+import { EditClaimButton } from "@/components/insurance/EditClaimButton";
 
 interface Props {
   params: Promise<{ claimId: string }>;
@@ -74,7 +75,15 @@ export default async function ClaimDetailPage({ params }: Props) {
           <NFPAClassificationBadge code={inv.causeCode} />
           <span className="text-xs text-slate-500">Policy: <span className="font-mono font-semibold text-slate-700">{claim.policyNumber}</span></span>
           <span className="text-xs text-slate-500">Claim: <span className="font-mono font-semibold text-slate-700">{claim.claimNumber}</span></span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <EditClaimButton claim={{
+              id:            claim.id,
+              adjusterName:  claim.adjusterName,
+              adjusterEmail: claim.adjusterEmail,
+              estimatedLoss: claim.estimatedLoss,
+              finalLoss:     claim.finalLoss,
+              notes:         claim.notes,
+            }} />
             <Link
               href={`/investigations/${inv.id}`}
               className="text-xs font-medium text-authority-700 hover:underline flex items-center gap-1"
