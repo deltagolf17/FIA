@@ -24,7 +24,9 @@ export async function PATCH(
   const all = await prisma.checklistItem.findMany({
     where: { investigationId: item.investigationId },
   });
-  const score = Math.round((all.filter((i) => i.completed).length / all.length) * 100);
+  const score = all.length > 0
+    ? Math.round((all.filter((i) => i.completed).length / all.length) * 100)
+    : 0;
 
   await prisma.investigation.update({
     where: { id: item.investigationId },

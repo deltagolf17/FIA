@@ -18,8 +18,11 @@ const nextConfig: NextConfig = {
       // UploadThing / local uploads
       { protocol: "https", hostname: "uploadthing.com" },
       { protocol: "https", hostname: "utfs.io" },
-      // Map tiles (CartoDB)
-      { protocol: "https", hostname: "*.basemaps.cartocdn.com" },
+      // Map tiles (CartoDB) — Next.js remotePatterns doesn't support wildcard hostnames
+      { protocol: "https", hostname: "a.basemaps.cartocdn.com" },
+      { protocol: "https", hostname: "b.basemaps.cartocdn.com" },
+      { protocol: "https", hostname: "c.basemaps.cartocdn.com" },
+      { protocol: "https", hostname: "d.basemaps.cartocdn.com" },
     ],
   },
   experimental: {
