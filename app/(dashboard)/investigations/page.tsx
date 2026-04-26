@@ -31,7 +31,9 @@ async function getInvestigations(p: SearchParams) {
   return prisma.investigation.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: {
+    select: {
+      id: true, caseNumber: true, address: true, city: true, state: true,
+      status: true, causeCode: true, complianceScore: true, createdAt: true,
       investigator: { select: { name: true } },
       _count: { select: { evidence: true } },
     },
@@ -159,22 +161,31 @@ export default async function InvestigationsPage({
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Address</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cause</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">NFPA 921</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Investigator</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Evidence</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Ev.</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {investigations.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                  <tr
+                    key={inv.id}
+                    className={cn(
+                      "transition-colors group",
+                      inv.causeCode === "INCENDIARY"
+                        ? "bg-red-50/60 hover:bg-red-50 border-l-4 border-l-red-400"
+                        : "hover:bg-slate-50"
+                    )}
+                  >
                     <td className="px-4 py-3">
                       <Link href={`/investigations/${inv.id}`}>
                         <span className="font-mono text-xs font-semibold text-authority-800 hover:underline">{inv.caseNumber}</span>
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="max-w-[200px]">
+                      <div className="max-w-[180px]">
                         <p className="font-medium text-slate-900 truncate">{inv.address}</p>
                         <p className="text-xs text-slate-500">{inv.city}, {inv.state}</p>
                       </div>
@@ -186,6 +197,27 @@ export default async function InvestigationsPage({
                     </td>
                     <td className="px-4 py-3">
                       <NFPAClassificationBadge code={inv.causeCode} size="sm" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              inv.complianceScore >= 80 ? "bg-green-500" :
+                              inv.complianceScore >= 50 ? "bg-yellow-500" : "bg-red-400"
+                            )}
+                            style={{ width: `${inv.complianceScore}%` }}
+                          />
+                        </div>
+                        <span className={cn(
+                          "text-xs font-medium tabular-nums",
+                          inv.complianceScore >= 80 ? "text-green-700" :
+                          inv.complianceScore >= 50 ? "text-yellow-700" : "text-red-600"
+                        )}>
+                          {inv.complianceScore}%
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600 text-xs">{inv.investigator.name}</td>
                     <td className="px-4 py-3">
