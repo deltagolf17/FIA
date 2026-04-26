@@ -11,9 +11,10 @@ import { StatusDropdown } from "@/components/investigation/StatusDropdown";
 import { getStatusColor } from "@/lib/nfpa/nfpa921";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
-import { MapPin, Calendar, User, Building, FileText, Package, Flame } from "lucide-react";
+import { MapPin, Calendar, User, Building, FileText, Package, Flame, Clock } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { CaseTimeline } from "@/components/investigation/CaseTimeline";
 
 async function getInvestigation(id: string) {
   return prisma.investigation.findUnique({
@@ -115,6 +116,7 @@ export default async function InvestigationDetailPage({ params }: Props) {
               { value: "evidence",  label: `Evidence (${inv.evidence.length})` },
               { value: "patterns",  label: `Fire Patterns (${inv.firePatterns.length})` },
               { value: "checklist", label: `NFPA Checklist (${checklistCompleted}/${checklistTotal})` },
+              { value: "timeline",  label: "Timeline" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -271,6 +273,27 @@ export default async function InvestigationDetailPage({ params }: Props) {
           {/* NFPA CHECKLIST */}
           <TabsContent value="checklist">
             <InteractiveChecklist items={inv.checklistItems} />
+          </TabsContent>
+
+          {/* TIMELINE */}
+          <TabsContent value="timeline">
+            <CaseTimeline
+              investigationId={inv.id}
+              caseNumber={inv.caseNumber}
+              incidentDate={inv.incidentDate}
+              createdAt={inv.createdAt}
+              updatedAt={inv.updatedAt}
+              status={inv.status}
+              causeCode={inv.causeCode}
+              investigatorName={inv.investigator.name}
+              evidence={inv.evidence.map((e) => ({
+                ...e,
+                labSubmitted: e.labSubmitted,
+                labSubmittedAt: e.labSubmittedAt ?? null,
+              }))}
+              firePatterns={inv.firePatterns}
+              insuranceClaim={inv.insuranceClaim}
+            />
           </TabsContent>
         </Tabs>
       </div>
