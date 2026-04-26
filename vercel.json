@@ -2,17 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npx prisma generate && npx prisma migrate deploy && next build",
   "installCommand": "npm install",
-  "env": {
-    "DATABASE_URL": "@database-url",
-    "DIRECT_URL": "@direct-url",
-    "NEXTAUTH_SECRET": "@nextauth-secret",
-    "NEXTAUTH_URL": "@nextauth-url",
-    "ANTHROPIC_API_KEY": "@anthropic-api-key",
-    "RESEND_API_KEY": "@resend-api-key",
-    "EMAIL_FROM": "@email-from",
-    "UPLOADTHING_SECRET": "@uploadthing-secret",
-    "UPLOADTHING_APP_ID": "@uploadthing-app-id"
-  },
   "headers": [
     {
       "source": "/(.*)",
