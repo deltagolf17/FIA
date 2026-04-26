@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { sendEmail, incendiaryAlertHtml, pendingReviewAlertHtml } from "@/lib/email";
+
+const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export async function PATCH(
   req: NextRequest,
@@ -24,10 +27,65 @@ export async function PATCH(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  // Fetch current state before update to detect transitions
+  const before = await prisma.investigation.findUnique({
+    where: { id },
+    select: { causeCode: true, status: true, caseNumber: true, address: true, city: true, state: true, investigator: { select: { name: true } } },
+  });
+
   const updated = await prisma.investigation.update({
     where: { id },
     data: { ...data, updatedAt: new Date() },
   });
+
+  // Fire-and-forget email alerts (don't block response)
+  const investigationUrl = `${BASE_URL}/investigations/${id}`;
+  const investigatorName = before?.investigator?.name ?? session.user.name ?? "Investigator";
+
+  const newCause = data.causeCode as string | undefined;
+  const newStatus = data.status as string | undefined;
+
+  if (newCause === "INCENDIARY" && before?.causeCode !== "INCENDIARY") {
+    prisma.user.findMany({
+      where: { role: { in: ["SUPERVISOR", "ADMIN"] } },
+      select: { email: true },
+    }).then((supervisors) => {
+      if (supervisors.length === 0) return;
+      const to = supervisors.map((u) => u.email);
+      return sendEmail(
+        to,
+        `⚠️ Incendiary Fire Alert — ${before?.caseNumber}`,
+        incendiaryAlertHtml({
+          caseNumber: before?.caseNumber ?? id,
+          address: before?.address ?? "",
+          city: before?.city ?? "",
+          state: before?.state ?? "",
+          investigatorName,
+          investigationUrl,
+        })
+      );
+    }).catch(console.error);
+  }
+
+  if (newStatus === "PENDING_REVIEW" && before?.status !== "PENDING_REVIEW") {
+    prisma.user.findMany({
+      where: { role: { in: ["SUPERVISOR", "ADMIN"] } },
+      select: { email: true },
+    }).then((supervisors) => {
+      if (supervisors.length === 0) return;
+      const to = supervisors.map((u) => u.email);
+      return sendEmail(
+        to,
+        `📋 Case Ready for Review — ${before?.caseNumber}`,
+        pendingReviewAlertHtml({
+          caseNumber: before?.caseNumber ?? id,
+          address: before?.address ?? "",
+          investigatorName,
+          investigationUrl,
+        })
+      );
+    }).catch(console.error);
+  }
 
   return NextResponse.json(updated);
 }

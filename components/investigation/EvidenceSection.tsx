@@ -53,11 +53,25 @@ function parsePhotos(raw?: string): string[] {
   try { return JSON.parse(raw ?? "[]"); } catch { return []; }
 }
 
-function fileToDataUrl(file: File): Promise<string> {
+function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target!.result as string;
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -105,7 +119,7 @@ function AddEvidenceForm({
   async function handleFiles(files: FileList | null) {
     if (!files) return;
     const newFiles = Array.from(files).slice(0, 5 - photos.length);
-    const urls = await Promise.all(newFiles.map(fileToDataUrl));
+    const urls = await Promise.all(newFiles.map((f) => compressImage(f)));
     setPhotos((p) => [...p, ...newFiles]);
     setPreviews((p) => [...p, ...urls]);
   }
@@ -122,7 +136,7 @@ function AddEvidenceForm({
     setError("");
     setSubmitting(true);
     try {
-      const photoUrls = await Promise.all(photos.map(fileToDataUrl));
+      const photoUrls = await Promise.all(photos.map((f) => compressImage(f)));
       const res = await fetch("/api/evidence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -4,13 +4,12 @@ import { Header } from "@/components/layout/Header";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { CauseTrendsChart } from "@/components/dashboard/CauseTrendsChart";
+import { ActiveCasesMap } from "@/components/dashboard/ActiveCasesMap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NFPAClassificationBadge } from "@/components/investigation/NFPAClassificationBadge";
-import { formatDate } from "@/lib/utils/formatters";
 import { TrendingUp, MapPin } from "lucide-react";
 
 async function getDashboardData() {
-  const [open, inProgress, closed, incendiary, recent, investigations] = await Promise.all([
+  const [open, inProgress, closed, incendiary, recent, investigations, mapPins] = await Promise.all([
     prisma.investigation.count({ where: { status: "OPEN" } }),
     prisma.investigation.count({ where: { status: "IN_PROGRESS" } }),
     prisma.investigation.count({ where: { status: "CLOSED" } }),
@@ -24,6 +23,10 @@ async function getDashboardData() {
       orderBy: { createdAt: "desc" },
       take: 50,
       select: { createdAt: true, causeCode: true },
+    }),
+    prisma.investigation.findMany({
+      where: { lat: { not: null } },
+      select: { id: true, caseNumber: true, address: true, city: true, state: true, status: true, causeCode: true, lat: true, lng: true },
     }),
   ]);
 
@@ -50,12 +53,12 @@ async function getDashboardData() {
     };
   });
 
-  return { stats: { open, inProgress, closed, incendiary }, recent, trendData };
+  return { stats: { open, inProgress, closed, incendiary }, recent, trendData, mapPins };
 }
 
 export default async function DashboardPage() {
   const session = await auth();
-  const { stats, recent, trendData } = await getDashboardData();
+  const { stats, recent, trendData, mapPins } = await getDashboardData();
 
   return (
     <div className="flex flex-col h-full">
@@ -97,49 +100,20 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        {/* NFPA Compliance Summary */}
+        {/* Active cases map */}
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-fire-600" />
-                Active Cases Overview
-              </CardTitle>
-            </div>
+            <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-fire-600" />
+              Active Cases — Geographic Overview
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {recent.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm">
-                No investigations yet. <a href="/investigations/new" className="text-authority-700 underline">Create the first one.</a>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Case #</th>
-                      <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Address</th>
-                      <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Cause</th>
-                      <th className="text-left py-2 px-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recent.map((inv) => (
-                      <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 px-3 font-mono text-xs font-medium text-authority-800">
-                          <a href={`/investigations/${inv.id}`} className="hover:underline">{inv.caseNumber}</a>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600 truncate max-w-[200px]">{inv.address}</td>
-                        <td className="py-2.5 px-3">
-                          <NFPAClassificationBadge code={(inv as { causeCode?: string }).causeCode} size="sm" />
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-500 text-xs">{formatDate(inv.createdAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <CardContent className="pb-4">
+            <ActiveCasesMap pins={mapPins.map((p) => ({
+              ...p,
+              lat: p.lat!,
+              lng: p.lng!,
+            }))} />
           </CardContent>
         </Card>
       </div>
