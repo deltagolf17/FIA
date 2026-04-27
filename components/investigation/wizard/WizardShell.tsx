@@ -12,6 +12,7 @@ import { Step4_Evidence } from "./Step4_Evidence";
 import { Step5_OriginDetermination } from "./Step5_OriginDetermination";
 import { Step6_CauseClassification } from "./Step6_CauseClassification";
 import { Step7_FinalDetermination } from "./Step7_FinalDetermination";
+import { Step8_ReviewSubmit } from "./Step8_ReviewSubmit";
 import type { WizardState } from "@/types";
 
 const STEPS = [
@@ -22,6 +23,7 @@ const STEPS = [
   { id: 5, label: "Origin Determination",   nfpa: "NFPA 921 §14" },
   { id: 6, label: "Cause Classification",   nfpa: "NFPA 921 §20" },
   { id: 7, label: "Final Determination",    nfpa: "NFPA 921 §20" },
+  { id: 8, label: "Review & Submit",        nfpa: "NFPA 921 §20" },
 ];
 
 const defaultState: WizardState = {
@@ -56,6 +58,10 @@ export function WizardShell() {
     setState((prev) => ({ ...prev, step: Math.max(prev.step - 1, 1) }));
   }
 
+  function goToStep(n: number) {
+    setState((prev) => ({ ...prev, step: n }));
+  }
+
   async function submit() {
     setSubmitting(true);
     setError("");
@@ -86,10 +92,15 @@ export function WizardShell() {
             const done = step.id < currentStep;
             const active = step.id === currentStep;
             return (
-              <div key={step.id} className={cn(
-                "flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                active ? "bg-authority-50" : "hover:bg-slate-50"
-              )}>
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => goToStep(step.id)}
+                className={cn(
+                  "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors text-left",
+                  active ? "bg-authority-50" : "hover:bg-slate-50"
+                )}
+              >
                 <div className="mt-0.5 shrink-0">
                   {done ? (
                     <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -106,7 +117,7 @@ export function WizardShell() {
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">{step.nfpa}</p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -180,6 +191,13 @@ export function WizardShell() {
             <Step7_FinalDetermination
               data={state.finalDetermination}
               onChange={(d) => update("finalDetermination", d)}
+              onBack={back}
+              onNext={next}
+            />
+          )}
+          {currentStep === 8 && (
+            <Step8_ReviewSubmit
+              state={state}
               onBack={back}
               onSubmit={submit}
               submitting={submitting}
