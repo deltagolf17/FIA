@@ -46,7 +46,7 @@ export function ActiveCasesMap({ pins }: Props) {
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
 
-      if (!mapRef.current) return;
+      if (!mapRef.current || instanceRef.current) return;
 
       map = L.map(mapRef.current, {
         zoomControl: true,
