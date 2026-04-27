@@ -238,6 +238,8 @@ export default async function InvestigationDetailPage({ params }: Props) {
                 investigationId: inv.id,
                 caseNumber: inv.caseNumber,
               }))}
+              caseNumber={inv.caseNumber}
+              structureType={inv.structureType ?? undefined}
             />
           </TabsContent>
 

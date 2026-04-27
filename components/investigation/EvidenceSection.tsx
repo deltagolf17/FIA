@@ -8,8 +8,9 @@ import { EvidenceQRLabel } from "./EvidenceQRLabel";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
 import {
   Package, QrCode, PenLine, CheckCircle2, Loader2,
-  Plus, X, Camera, Upload, Trash2,
+  Plus, X, Camera, Upload, Trash2, Sparkles,
 } from "lucide-react";
+import { PhotoAnalysisModal } from "./PhotoAnalysisModal";
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
 
@@ -36,6 +37,7 @@ interface EvidenceItem {
   chainOfCustody: CustodyEntry[];
   investigationId: string;
   caseNumber: string;
+  structureType?: string;
 }
 
 const CUSTODY_ACTIONS = ["RECEIVED", "TRANSFERRED", "SUBMITTED_TO_LAB", "RETURNED", "DESTROYED"];
@@ -283,7 +285,22 @@ function AddEvidenceForm({
   );
 }
 
-export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[] }) {
+interface PhotoModalState {
+  photos: string[];
+  index: number;
+  description: string;
+  location: string;
+}
+
+export function EvidenceSection({
+  items: initialItems,
+  caseNumber: propCaseNumber,
+  structureType,
+}: {
+  items: EvidenceItem[];
+  caseNumber?: string;
+  structureType?: string;
+}) {
   const router = useRouter();
   const [items] = useState(initialItems);
   const [showQR, setShowQR] = useState(false);
@@ -292,6 +309,7 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
   const [sigAction, setSigAction] = useState("TRANSFERRED");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<PhotoModalState | null>(null);
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this evidence item and all custody entries? This cannot be undone.")) return;
@@ -338,7 +356,7 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
   }
 
   const investigationId = items[0]?.investigationId ?? "";
-  const caseNumber = items[0]?.caseNumber ?? "";
+  const caseNumber = propCaseNumber ?? items[0]?.caseNumber ?? "";
 
   return (
     <div className="space-y-4">
@@ -377,6 +395,19 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
           defaultItemNumber={nextItemNumber(items)}
           onSaved={handleSaved}
           onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {/* Photo AI analysis modal */}
+      {photoModal && (
+        <PhotoAnalysisModal
+          photos={photoModal.photos}
+          initialIndex={photoModal.index}
+          evidenceDescription={photoModal.description}
+          evidenceLocation={photoModal.location}
+          caseNumber={caseNumber}
+          structureType={structureType}
+          onClose={() => setPhotoModal(null)}
         />
       )}
 
@@ -421,18 +452,41 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
 
                 {/* Photos */}
                 {photos.length > 0 && (
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    {photos.map((src, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={src}
-                        alt={`Evidence photo ${i + 1}`}
-                        className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90"
-                        onClick={() => window.open(src, "_blank")}
-                      />
-                    ))}
-                    <span className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      {photos.map((src, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`Evidence photo ${i + 1}`}
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90 hover:border-authority-400 transition-all"
+                          onClick={() =>
+                            setPhotoModal({
+                              photos,
+                              index: i,
+                              description: e.description,
+                              location: e.location,
+                            })
+                          }
+                        />
+                      ))}
+                      <span className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setPhotoModal({
+                          photos,
+                          index: 0,
+                          description: e.description,
+                          location: e.location,
+                        })
+                      }
+                      className="flex items-center gap-1.5 text-xs font-medium text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1.5 rounded-lg transition-colors border border-orange-200"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Analyze with AI (NFPA 921)
+                    </button>
                   </div>
                 )}
 
