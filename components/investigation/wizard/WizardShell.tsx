@@ -26,7 +26,7 @@ const STEPS = [
 
 const defaultState: WizardState = {
   step: 1,
-  incidentBasics: { incidentDate: "", dispatchTime: "", arrivalTime: "", address: "", city: "", state: "", zip: "", occupancyType: "", notes: "" },
+  incidentBasics: { incidentDate: "", dispatchTime: "", arrivalTime: "", address: "", city: "Perth", state: "WA", zip: "", occupancyType: "", notes: "" },
   sceneCondition: { structureType: "", numStories: "", constructionType: "", buildingAge: "", weatherConditions: "", windSpeed: "", windDirection: "", temperature: "", humidity: "", utilitiesGas: "UNKNOWN", utilitiesElectric: "UNKNOWN", utilitiesWater: "UNKNOWN" },
   firePatterns: [],
   evidence: [],

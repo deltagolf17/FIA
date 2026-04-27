@@ -8,8 +8,9 @@ import { EvidenceQRLabel } from "./EvidenceQRLabel";
 import { formatDate, formatDateTime } from "@/lib/utils/formatters";
 import {
   Package, QrCode, PenLine, CheckCircle2, Loader2,
-  Plus, X, Camera, Upload, Trash2,
+  Plus, X, Camera, Upload, Trash2, Sparkles,
 } from "lucide-react";
+import { PhotoAnalysisModal } from "./PhotoAnalysisModal";
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
 
@@ -36,6 +37,7 @@ interface EvidenceItem {
   chainOfCustody: CustodyEntry[];
   investigationId: string;
   caseNumber: string;
+  structureType?: string;
 }
 
 const CUSTODY_ACTIONS = ["RECEIVED", "TRANSFERRED", "SUBMITTED_TO_LAB", "RETURNED", "DESTROYED"];
@@ -110,18 +112,31 @@ function AddEvidenceForm({
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function set(field: keyof AddFormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | File[] | null) {
     if (!files) return;
-    const newFiles = Array.from(files).slice(0, 5 - photos.length);
+    const newFiles = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 5 - photos.length);
+    if (!newFiles.length) return;
     const urls = await Promise.all(newFiles.map((f) => compressImage(f)));
     setPhotos((p) => [...p, ...newFiles]);
     setPreviews((p) => [...p, ...urls]);
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(true);
+  }
+  function onDragLeave() { setDragging(false); }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    handleFiles(Array.from(e.dataTransfer.files));
   }
 
   function removePhoto(i: number) {
@@ -229,43 +244,55 @@ function AddEvidenceForm({
         <label className="text-xs font-medium text-slate-500 block mb-2">
           <Camera className="w-3.5 h-3.5 inline mr-1" />Photos (up to 5)
         </label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {previews.map((src, i) => (
-            <div key={i} className="relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`Photo ${i + 1}`}
-                className="w-16 h-16 object-cover rounded-lg border border-slate-200"
-              />
-              <button
-                type="button"
-                onClick={() => removePhoto(i)}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </div>
-          ))}
-          {photos.length < 5 && (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="w-16 h-16 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:border-authority-400 hover:text-authority-500 transition-colors"
-            >
-              <Upload className="w-4 h-4 mb-0.5" />
-              <span className="text-xs">Add</span>
-            </button>
+        {/* Drag-and-drop zone */}
+        <div
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onClick={() => photos.length < 5 && fileRef.current?.click()}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-3 transition-colors cursor-pointer mb-2",
+            dragging
+              ? "border-authority-400 bg-authority-50"
+              : "border-slate-200 hover:border-authority-300 hover:bg-slate-50"
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
-          />
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            {previews.map((src, i) => (
+              <div key={i} className="relative group shrink-0" onClick={(e) => e.stopPropagation()}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`Photo ${i + 1}`}
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+            {photos.length < 5 && (
+              <div className="flex flex-col items-center justify-center text-slate-400 py-1 px-2">
+                <Upload className="w-5 h-5 mb-1" />
+                <span className="text-xs text-center leading-tight">
+                  {dragging ? "Drop photos" : "Click or drag photos"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -283,7 +310,22 @@ function AddEvidenceForm({
   );
 }
 
-export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[] }) {
+interface PhotoModalState {
+  photos: string[];
+  index: number;
+  description: string;
+  location: string;
+}
+
+export function EvidenceSection({
+  items: initialItems,
+  caseNumber: propCaseNumber,
+  structureType,
+}: {
+  items: EvidenceItem[];
+  caseNumber?: string;
+  structureType?: string;
+}) {
   const router = useRouter();
   const [items] = useState(initialItems);
   const [showQR, setShowQR] = useState(false);
@@ -292,6 +334,7 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
   const [sigAction, setSigAction] = useState("TRANSFERRED");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<PhotoModalState | null>(null);
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this evidence item and all custody entries? This cannot be undone.")) return;
@@ -338,7 +381,7 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
   }
 
   const investigationId = items[0]?.investigationId ?? "";
-  const caseNumber = items[0]?.caseNumber ?? "";
+  const caseNumber = propCaseNumber ?? items[0]?.caseNumber ?? "";
 
   return (
     <div className="space-y-4">
@@ -377,6 +420,19 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
           defaultItemNumber={nextItemNumber(items)}
           onSaved={handleSaved}
           onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {/* Photo AI analysis modal */}
+      {photoModal && (
+        <PhotoAnalysisModal
+          photos={photoModal.photos}
+          initialIndex={photoModal.index}
+          evidenceDescription={photoModal.description}
+          evidenceLocation={photoModal.location}
+          caseNumber={caseNumber}
+          structureType={structureType}
+          onClose={() => setPhotoModal(null)}
         />
       )}
 
@@ -421,18 +477,41 @@ export function EvidenceSection({ items: initialItems }: { items: EvidenceItem[]
 
                 {/* Photos */}
                 {photos.length > 0 && (
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    {photos.map((src, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={src}
-                        alt={`Evidence photo ${i + 1}`}
-                        className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90"
-                        onClick={() => window.open(src, "_blank")}
-                      />
-                    ))}
-                    <span className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      {photos.map((src, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`Evidence photo ${i + 1}`}
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90 hover:border-authority-400 transition-all"
+                          onClick={() =>
+                            setPhotoModal({
+                              photos,
+                              index: i,
+                              description: e.description,
+                              location: e.location,
+                            })
+                          }
+                        />
+                      ))}
+                      <span className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setPhotoModal({
+                          photos,
+                          index: 0,
+                          description: e.description,
+                          location: e.location,
+                        })
+                      }
+                      className="flex items-center gap-1.5 text-xs font-medium text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1.5 rounded-lg transition-colors border border-orange-200"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Analyze with AI (NFPA 921)
+                    </button>
                   </div>
                 )}
 
