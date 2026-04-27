@@ -61,7 +61,7 @@ export function ActiveCasesMap({ pins }: Props) {
       instanceRef.current = map;
 
       if (pins.length === 0) {
-        map.setView([39.8, -89.6], 6);
+        map.setView([-25.5, 122.0], 5); // Western Australia
         return;
       }
 
