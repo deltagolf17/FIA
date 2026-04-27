@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { CaseTimeline } from "@/components/investigation/CaseTimeline";
 import { FirePatternsSection } from "@/components/investigation/FirePatternsSection";
 import { EditInvestigationButton } from "@/components/investigation/EditInvestigationButton";
+import { FieldChecklistDropdown } from "@/components/investigation/FieldChecklistDropdown";
+import { InvestigationNotesEditor } from "@/components/investigation/InvestigationNotesEditor";
 import { ReassignInvestigatorButton } from "@/components/investigation/ReassignInvestigatorButton";
 
 async function getInvestigation(id: string) {
@@ -111,6 +113,9 @@ export default async function InvestigationDetailPage({ params }: Props) {
           </div>
         </div>
 
+        {/* Field checklist dropdown */}
+        <FieldChecklistDropdown investigationId={inv.id} />
+
         {/* AI Assist Panel */}
         <AIAssistPanel
           investigationId={inv.id}
@@ -133,6 +138,7 @@ export default async function InvestigationDetailPage({ params }: Props) {
               { value: "evidence",  label: `Evidence (${inv.evidence.length})` },
               { value: "patterns",  label: `Fire Patterns (${inv.firePatterns.length})` },
               { value: "checklist", label: `NFPA Checklist (${checklistCompleted}/${checklistTotal})` },
+              { value: "notes",     label: "Notes" },
               { value: "timeline",  label: "Timeline" },
             ].map((tab) => (
               <TabsTrigger
@@ -251,6 +257,14 @@ export default async function InvestigationDetailPage({ params }: Props) {
           {/* NFPA CHECKLIST */}
           <TabsContent value="checklist">
             <InteractiveChecklist items={inv.checklistItems} />
+          </TabsContent>
+
+          {/* NOTES */}
+          <TabsContent value="notes">
+            <InvestigationNotesEditor
+              investigationId={inv.id}
+              initialNotes={inv.notes}
+            />
           </TabsContent>
 
           {/* TIMELINE */}

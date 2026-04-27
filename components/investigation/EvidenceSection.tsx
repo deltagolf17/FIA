@@ -112,18 +112,31 @@ function AddEvidenceForm({
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function set(field: keyof AddFormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | File[] | null) {
     if (!files) return;
-    const newFiles = Array.from(files).slice(0, 5 - photos.length);
+    const newFiles = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 5 - photos.length);
+    if (!newFiles.length) return;
     const urls = await Promise.all(newFiles.map((f) => compressImage(f)));
     setPhotos((p) => [...p, ...newFiles]);
     setPreviews((p) => [...p, ...urls]);
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(true);
+  }
+  function onDragLeave() { setDragging(false); }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    handleFiles(Array.from(e.dataTransfer.files));
   }
 
   function removePhoto(i: number) {
@@ -231,43 +244,55 @@ function AddEvidenceForm({
         <label className="text-xs font-medium text-slate-500 block mb-2">
           <Camera className="w-3.5 h-3.5 inline mr-1" />Photos (up to 5)
         </label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {previews.map((src, i) => (
-            <div key={i} className="relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`Photo ${i + 1}`}
-                className="w-16 h-16 object-cover rounded-lg border border-slate-200"
-              />
-              <button
-                type="button"
-                onClick={() => removePhoto(i)}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </div>
-          ))}
-          {photos.length < 5 && (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="w-16 h-16 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:border-authority-400 hover:text-authority-500 transition-colors"
-            >
-              <Upload className="w-4 h-4 mb-0.5" />
-              <span className="text-xs">Add</span>
-            </button>
+        {/* Drag-and-drop zone */}
+        <div
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onClick={() => photos.length < 5 && fileRef.current?.click()}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-3 transition-colors cursor-pointer mb-2",
+            dragging
+              ? "border-authority-400 bg-authority-50"
+              : "border-slate-200 hover:border-authority-300 hover:bg-slate-50"
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
-          />
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            {previews.map((src, i) => (
+              <div key={i} className="relative group shrink-0" onClick={(e) => e.stopPropagation()}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`Photo ${i + 1}`}
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+            {photos.length < 5 && (
+              <div className="flex flex-col items-center justify-center text-slate-400 py-1 px-2">
+                <Upload className="w-5 h-5 mb-1" />
+                <span className="text-xs text-center leading-tight">
+                  {dragging ? "Drop photos" : "Click or drag photos"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
