@@ -1,8 +1,6 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { incidentBasicsSchema } from "@/lib/validations/investigation.schema";
 import { OCCUPANCY_TYPES } from "@/lib/nfpa/nfpa921";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { IncidentBasicsData } from "@/types";
 import { Info } from "lucide-react";
-import { z } from "zod";
-
-type FormData = z.infer<typeof incidentBasicsSchema>;
 
 interface Props {
   data: IncidentBasicsData;
@@ -22,18 +17,17 @@ interface Props {
 }
 
 export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(incidentBasicsSchema),
+  const { register, getValues, setValue } = useForm<IncidentBasicsData>({
     defaultValues: data,
   });
 
-  function onSubmit(values: FormData) {
-    onChange(values as IncidentBasicsData);
+  function handleNext() {
+    onChange(getValues());
     onNext();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-2">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-6 p-2">
       <div className="flex items-start gap-3 bg-authority-50 border border-authority-100 rounded-xl p-4">
         <Info className="w-4 h-4 text-authority-700 mt-0.5 shrink-0" />
         <div>
@@ -46,8 +40,7 @@ export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
         <div className="space-y-1.5">
           <Label htmlFor="incidentDate">Incident Date <span className="text-red-500">*</span></Label>
           <Input id="incidentDate" type="date" {...register("incidentDate")} />
-          {errors.incidentDate && <p className="text-xs text-red-500">{errors.incidentDate.message}</p>}
-        </div>
+                  </div>
         <div className="space-y-1.5">
           <Label htmlFor="occupancyType">Occupancy Type <span className="text-red-500">*</span></Label>
           <Select onValueChange={(v) => setValue("occupancyType", v)} defaultValue={data.occupancyType}>
@@ -60,8 +53,7 @@ export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
               ))}
             </SelectContent>
           </Select>
-          {errors.occupancyType && <p className="text-xs text-red-500">{errors.occupancyType.message}</p>}
-        </div>
+                  </div>
         <div className="space-y-1.5">
           <Label htmlFor="dispatchTime">Dispatch Time</Label>
           <Input id="dispatchTime" type="time" {...register("dispatchTime")} />
@@ -75,25 +67,21 @@ export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
       <div className="space-y-1.5">
         <Label htmlFor="address">Street Address <span className="text-red-500">*</span></Label>
         <Input id="address" placeholder="123 Main Street" {...register("address")} />
-        {errors.address && <p className="text-xs text-red-500">{errors.address.message}</p>}
-      </div>
+              </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-1 space-y-1.5">
           <Label>City <span className="text-red-500">*</span></Label>
           <Input placeholder="Springfield" {...register("city")} />
-          {errors.city && <p className="text-xs text-red-500">{errors.city.message}</p>}
-        </div>
+                  </div>
         <div className="space-y-1.5">
           <Label>State <span className="text-red-500">*</span></Label>
           <Input placeholder="IL" maxLength={2} className="uppercase" {...register("state")} />
-          {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
-        </div>
+                  </div>
         <div className="space-y-1.5">
           <Label>ZIP Code <span className="text-red-500">*</span></Label>
           <Input placeholder="62701" {...register("zip")} />
-          {errors.zip && <p className="text-xs text-red-500">{errors.zip.message}</p>}
-        </div>
+                  </div>
       </div>
 
       <div className="space-y-1.5">
@@ -102,7 +90,7 @@ export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" variant="default">Continue — Scene Condition</Button>
+        <Button type="button" onClick={handleNext}>Continue — Scene Condition</Button>
       </div>
     </form>
   );

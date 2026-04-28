@@ -1,8 +1,6 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { originSchema } from "@/lib/validations/investigation.schema";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,9 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { OriginData } from "@/types";
 import { Info, MapPin } from "lucide-react";
-import { z } from "zod";
-
-type FormData = z.infer<typeof originSchema>;
 
 interface Props {
   data: OriginData;
@@ -33,18 +28,15 @@ const METHODOLOGIES = [
 ];
 
 export function Step5_OriginDetermination({ data, onChange, onNext, onBack }: Props) {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(originSchema),
-    defaultValues: data,
-  });
+  const { register, getValues, setValue } = useForm<OriginData>({ defaultValues: data });
 
-  function onSubmit(values: FormData) {
-    onChange(values as OriginData);
+  function handleNext() {
+    onChange(getValues());
     onNext();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-2">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-6 p-2">
       <div className="flex items-start gap-3 bg-authority-50 border border-authority-100 rounded-xl p-4">
         <Info className="w-4 h-4 text-authority-700 mt-0.5 shrink-0" />
         <div>
@@ -56,7 +48,7 @@ export function Step5_OriginDetermination({ data, onChange, onNext, onBack }: Pr
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="areaOfOrigin">
-            Area of Origin <span className="text-red-500">*</span>
+            Area of Origin
             <span className="ml-2 text-xs text-slate-400 font-normal">NFPA 921 §14.3</span>
           </Label>
           <div className="relative">
@@ -68,7 +60,6 @@ export function Step5_OriginDetermination({ data, onChange, onNext, onBack }: Pr
               {...register("areaOfOrigin")}
             />
           </div>
-          {errors.areaOfOrigin && <p className="text-xs text-red-500">{errors.areaOfOrigin.message}</p>}
         </div>
 
         <div className="space-y-1.5">
@@ -84,7 +75,7 @@ export function Step5_OriginDetermination({ data, onChange, onNext, onBack }: Pr
         </div>
 
         <div className="space-y-1.5">
-          <Label>Investigative Methodology <span className="text-red-500">*</span></Label>
+          <Label>Investigative Methodology</Label>
           <Select onValueChange={(v) => setValue("methodology", v)} defaultValue={data.methodology}>
             <SelectTrigger><SelectValue placeholder="Select methodology used..." /></SelectTrigger>
             <SelectContent>
@@ -93,26 +84,22 @@ export function Step5_OriginDetermination({ data, onChange, onNext, onBack }: Pr
               ))}
             </SelectContent>
           </Select>
-          {errors.methodology && <p className="text-xs text-red-500">{errors.methodology.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="originNarrative">
-            Origin Determination Narrative <span className="text-red-500">*</span>
-          </Label>
+          <Label htmlFor="originNarrative">Origin Determination Narrative</Label>
           <Textarea
             id="originNarrative"
             rows={5}
             placeholder="Describe the fire pattern analysis that supports this origin determination. Reference specific patterns documented in Step 3. Include how alternative hypotheses were considered and eliminated per NFPA 921 §17.4..."
             {...register("originNarrative")}
           />
-          {errors.originNarrative && <p className="text-xs text-red-500">{errors.originNarrative.message}</p>}
         </div>
       </div>
 
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={onBack}>Back</Button>
-        <Button type="submit">Continue — Cause Classification</Button>
+        <Button type="button" onClick={handleNext}>Continue — Cause Classification</Button>
       </div>
     </form>
   );

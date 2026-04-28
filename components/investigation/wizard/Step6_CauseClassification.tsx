@@ -1,8 +1,6 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { causeSchema } from "@/lib/validations/investigation.schema";
 import { IGNITION_SOURCES, FIRST_MATERIALS } from "@/lib/nfpa/nfpa921";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CauseData } from "@/types";
 import { Info, Zap } from "lucide-react";
-import { z } from "zod";
-
-type FormData = z.infer<typeof causeSchema>;
 
 interface Props {
   data: CauseData;
@@ -34,18 +29,15 @@ const IGNITION_FACTORS = [
 ];
 
 export function Step6_CauseClassification({ data, onChange, onNext, onBack }: Props) {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(causeSchema),
-    defaultValues: data,
-  });
+  const { register, getValues, setValue } = useForm<CauseData>({ defaultValues: data });
 
-  function onSubmit(values: FormData) {
-    onChange(values as CauseData);
+  function handleNext() {
+    onChange(getValues());
     onNext();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-2">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-6 p-2">
       <div className="flex items-start gap-3 bg-authority-50 border border-authority-100 rounded-xl p-4">
         <Info className="w-4 h-4 text-authority-700 mt-0.5 shrink-0" />
         <div>
@@ -70,7 +62,7 @@ export function Step6_CauseClassification({ data, onChange, onNext, onBack }: Pr
 
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-1.5">
-          <Label>First Material Ignited <span className="text-red-500">*</span></Label>
+          <Label>First Material Ignited</Label>
           <Select onValueChange={(v) => setValue("firstMaterialIgnited", v)} defaultValue={data.firstMaterialIgnited}>
             <SelectTrigger><SelectValue placeholder="Select first material..." /></SelectTrigger>
             <SelectContent>
@@ -79,11 +71,10 @@ export function Step6_CauseClassification({ data, onChange, onNext, onBack }: Pr
               ))}
             </SelectContent>
           </Select>
-          {errors.firstMaterialIgnited && <p className="text-xs text-red-500">{errors.firstMaterialIgnited.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <Label>Ignition Source <span className="text-red-500">*</span></Label>
+          <Label>Ignition Source</Label>
           <Select onValueChange={(v) => setValue("ignitionSource", v)} defaultValue={data.ignitionSource}>
             <SelectTrigger><SelectValue placeholder="Select ignition source..." /></SelectTrigger>
             <SelectContent>
@@ -92,7 +83,6 @@ export function Step6_CauseClassification({ data, onChange, onNext, onBack }: Pr
               ))}
             </SelectContent>
           </Select>
-          {errors.ignitionSource && <p className="text-xs text-red-500">{errors.ignitionSource.message}</p>}
         </div>
 
         <div className="space-y-1.5">
@@ -109,24 +99,18 @@ export function Step6_CauseClassification({ data, onChange, onNext, onBack }: Pr
 
         <div className="space-y-1.5">
           <Label>Fuel Package</Label>
-          <Input
-            placeholder="Describe the fuel arrangement at origin..."
-            {...register("fuelPackage")}
-          />
+          <Input placeholder="Describe the fuel arrangement at origin..." {...register("fuelPackage")} />
         </div>
 
         <div className="space-y-1.5">
           <Label>Fire Spread</Label>
-          <Input
-            placeholder="How did fire spread from origin? Vertical, horizontal, through voids..."
-            {...register("fireSpread")}
-          />
+          <Input placeholder="How did fire spread from origin? Vertical, horizontal, through voids..." {...register("fireSpread")} />
         </div>
       </div>
 
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={onBack}>Back</Button>
-        <Button type="submit">Continue — Final Determination</Button>
+        <Button type="button" onClick={handleNext}>Continue — Final Determination</Button>
       </div>
     </form>
   );

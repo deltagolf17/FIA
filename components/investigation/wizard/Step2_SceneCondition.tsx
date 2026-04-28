@@ -1,8 +1,6 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { sceneConditionSchema } from "@/lib/validations/investigation.schema";
 import { STRUCTURE_TYPES, CONSTRUCTION_TYPES } from "@/lib/nfpa/nfpa921";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SceneConditionData } from "@/types";
 import { Info, Thermometer, Zap } from "lucide-react";
-import { z } from "zod";
-
-type FormData = z.infer<typeof sceneConditionSchema>;
-
 interface Props {
   data: SceneConditionData;
   onChange: (d: SceneConditionData) => void;
@@ -29,19 +23,15 @@ const UTILITY_OPTIONS = [
 
 export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<any>({
-    resolver: zodResolver(sceneConditionSchema),
-    defaultValues: data,
-  });
+  const { register, getValues, setValue } = useForm<any>({ defaultValues: data });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function onSubmit(values: any) {
-    onChange(values as SceneConditionData);
+  function handleNext() {
+    onChange(getValues() as SceneConditionData);
     onNext();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-2">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-6 p-2">
       <div className="flex items-start gap-3 bg-authority-50 border border-authority-100 rounded-xl p-4">
         <Info className="w-4 h-4 text-authority-700 mt-0.5 shrink-0" />
         <div>
@@ -63,7 +53,7 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
               ))}
             </SelectContent>
           </Select>
-          {errors.structureType && <p className="text-xs text-red-500">{String(errors.structureType.message ?? "")}</p>}
+          
         </div>
         <div className="space-y-1.5">
           <Label>Construction Type</Label>
@@ -161,7 +151,7 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
 
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={onBack}>Back</Button>
-        <Button type="submit">Continue — Fire Patterns</Button>
+        <Button type="button" onClick={handleNext}>Continue — Fire Patterns</Button>
       </div>
     </form>
   );
