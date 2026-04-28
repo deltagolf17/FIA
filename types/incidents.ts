@@ -19,9 +19,6 @@ export interface LiveIncident {
   lga: string;
   lat: number | null;
   lon: number | null;
-  fdrDistrict: string;
-  fdrRating: string;
-  fdrIndex: number | null;
   description?: string;
 }
 

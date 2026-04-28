@@ -5,7 +5,7 @@ import type { LiveIncident, NearbyStation, DetailTab } from "@/types/incidents";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, MapPin, Clock, Thermometer, Wind, Droplets,
-  Radio, AlertTriangle, Activity, Navigation,
+  Radio, AlertTriangle, Navigation,
 } from "lucide-react";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -27,24 +27,6 @@ const TYPE_LABELS: Record<string, string> = {
   ALARM:           "Alarm Activation",
   OTHER:           "Other Incident",
 };
-
-const FDR_COLORS: Record<string, string> = {
-  "Catastrophic":         "bg-red-900 text-white",
-  "Extreme":              "bg-red-700 text-white",
-  "Severe":               "bg-orange-600 text-white",
-  "Very High":            "bg-orange-400 text-white",
-  "High":                 "bg-yellow-500 text-slate-900",
-  "Moderate":             "bg-green-600 text-white",
-  "Low-Moderate":         "bg-green-400 text-slate-900",
-  "No Rating":            "bg-slate-200 text-slate-600",
-};
-
-function fdrColor(rating: string) {
-  for (const [key, val] of Object.entries(FDR_COLORS)) {
-    if (rating.toLowerCase().includes(key.toLowerCase())) return val;
-  }
-  return "bg-slate-200 text-slate-600";
-}
 
 function timeAgo(iso: string) {
   try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); }
@@ -122,14 +104,6 @@ export function IncidentDetailPanel({ incident, onBack }: Props) {
           </div>
         </div>
 
-        {/* FDR badge */}
-        {incident.fdrRating && incident.fdrRating !== "No Rating" && (
-          <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mb-3 ${fdrColor(incident.fdrRating)}`}>
-            <Activity className="w-3.5 h-3.5" />
-            FDR: {incident.fdrRating}
-            {incident.fdrIndex != null && <span className="opacity-70">(Index: {incident.fdrIndex})</span>}
-          </div>
-        )}
       </div>
 
       {/* Tab bar */}
@@ -160,7 +134,6 @@ export function IncidentDetailPanel({ incident, onBack }: Props) {
               <Row label="Type" value={incident.rawType} />
               <Row label="Started" value={new Date(incident.startDate).toLocaleString("en-AU")} />
               <Row label="Last Updated" value={new Date(incident.lastUpdated).toLocaleString("en-AU")} />
-              {incident.fdrDistrict && <Row label="FDR District" value={incident.fdrDistrict} />}
             </Section>
 
             <Section label="Location">

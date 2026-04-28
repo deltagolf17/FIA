@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import type { LiveIncident, RegionFilter, FilterMode } from "@/types/incidents";
 import { formatDistanceToNow } from "date-fns";
-import { MapPin, Clock, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { MapPin, ChevronRight, Search, RefreshCw } from "lucide-react";
 
 const TYPE_COLORS: Record<string, string> = {
   STRUCTURE_FIRE:  "bg-red-100 text-red-700",
@@ -215,12 +215,6 @@ export function IncidentListPanel({
                       </div>
                     )}
 
-                    {inc.fdrRating && inc.fdrRating !== "No Rating" && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span className="text-[10px] text-slate-500">FDR: {inc.fdrRating}</span>
-                      </div>
-                    )}
                   </div>
 
                   <ChevronRight className="w-3.5 h-3.5 text-slate-300 mt-1 shrink-0" />

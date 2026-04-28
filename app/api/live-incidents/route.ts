@@ -42,9 +42,6 @@ function parseXMLFeed(xml: string): LiveIncident[] {
         lga: extractTag(msg, "lga") || extractTag(msg, "localgovernment") || "",
         lat: isNaN(lat) ? null : lat,
         lon: isNaN(lon) ? null : lon,
-        fdrDistrict: extractTag(msg, "fdrdistrict") || extractTag(msg, "district") || "",
-        fdrRating: extractTag(msg, "fdrrating") || extractTag(msg, "firedangerrating") || "No Rating",
-        fdrIndex: parseFloat(extractTag(msg, "fdrindex") || "") || null,
         description: extractTag(msg, "description") || undefined,
       };
     });
@@ -74,9 +71,6 @@ function parseXMLFeed(xml: string): LiveIncident[] {
       lga: "",
       lat,
       lon,
-      fdrDistrict: "",
-      fdrRating: "No Rating",
-      fdrIndex: null,
       description: extractTag(item, "description").replace(/<[^>]+>/g, "").trim() || undefined,
     };
   });
