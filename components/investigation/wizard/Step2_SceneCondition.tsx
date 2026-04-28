@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { STRUCTURE_TYPES, CONSTRUCTION_TYPES } from "@/lib/nfpa/nfpa921";
 import { Input } from "@/components/ui/input";
@@ -7,12 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SceneConditionData } from "@/types";
-import { Info, Thermometer, Zap } from "lucide-react";
+import { Info, Thermometer, Zap, Cloud, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+
 interface Props {
   data: SceneConditionData;
   onChange: (d: SceneConditionData) => void;
   onNext: () => void;
   onBack: () => void;
+  incidentLat?: number;
+  incidentLng?: number;
 }
 
 const UTILITY_OPTIONS = [
@@ -21,13 +25,53 @@ const UTILITY_OPTIONS = [
   { value: "UNKNOWN", label: "Unknown" },
 ];
 
-export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) {
+const WIND_DIRECTIONS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+
+export function Step2_SceneCondition({ data, onChange, onNext, onBack, incidentLat, incidentLng }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, getValues, setValue } = useForm<any>({ defaultValues: data });
+  const { register, getValues, setValue, watch } = useForm<any>({ defaultValues: data });
+
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherSource, setWeatherSource] = useState("");
+  const [weatherError, setWeatherError] = useState("");
+
+  const selectedWeather = watch("weatherConditions");
+  const selectedWindDir = watch("windDirection");
 
   function handleNext() {
     onChange(getValues() as SceneConditionData);
     onNext();
+  }
+
+  async function autoFillWeather() {
+    if (!incidentLat || !incidentLng) {
+      setWeatherError("Geocode the address in Step 1 first to enable weather auto-fill.");
+      return;
+    }
+
+    setWeatherLoading(true);
+    setWeatherError("");
+    setWeatherSource("");
+
+    try {
+      const res = await fetch(`/api/weather?lat=${incidentLat}&lng=${incidentLng}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Weather fetch failed");
+
+      if (json.temperature != null) setValue("temperature", String(Math.round(json.temperature)));
+      if (json.humidity != null)    setValue("humidity",    String(Math.round(json.humidity)));
+      if (json.windSpeedKmh != null) setValue("windSpeed",  String(Math.round(json.windSpeedKmh)));
+      if (json.windDirection)        setValue("windDirection", json.windDirection);
+      if (json.conditions)           setValue("weatherConditions", json.conditions);
+
+      setWeatherSource(
+        `${json.station} (${json.distanceKm}km away) · ${json.source ?? "BOM"}`
+      );
+    } catch (e) {
+      setWeatherError((e as Error).message);
+    } finally {
+      setWeatherLoading(false);
+    }
   }
 
   return (
@@ -42,7 +86,7 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Structure Type <span className="text-red-500">*</span></Label>
+          <Label>Structure Type</Label>
           <Select onValueChange={(v) => setValue("structureType", v)} defaultValue={data.structureType}>
             <SelectTrigger>
               <SelectValue placeholder="Select structure type..." />
@@ -53,7 +97,6 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
               ))}
             </SelectContent>
           </Select>
-          
         </div>
         <div className="space-y-1.5">
           <Label>Construction Type</Label>
@@ -78,38 +121,74 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
         </div>
       </div>
 
-      {/* Weather */}
+      {/* Weather — BOM auto-fill */}
       <div>
-        <p className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-1.5">
-          <Thermometer className="w-4 h-4 text-fire-600" />
-          Weather Conditions at Time of Fire
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+            <Thermometer className="w-4 h-4 text-fire-600" />
+            Weather Conditions at Time of Fire
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={autoFillWeather}
+            disabled={weatherLoading}
+            className="gap-1.5 text-xs"
+          >
+            {weatherLoading
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <Cloud className="w-3 h-3" />
+            }
+            {weatherLoading ? "Fetching BOM…" : "Auto-fill from BOM"}
+          </Button>
+        </div>
+
+        {weatherSource && (
+          <div className="mb-3 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            Weather filled from {weatherSource}
+          </div>
+        )}
+        {weatherError && (
+          <div className="mb-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            {weatherError}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Conditions</Label>
-            <Select onValueChange={(v) => setValue("weatherConditions", v)} defaultValue={data.weatherConditions}>
+            <Select
+              onValueChange={(v) => setValue("weatherConditions", v)}
+              value={selectedWeather || data.weatherConditions || ""}
+            >
               <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
               <SelectContent>
-                {["Clear", "Partly Cloudy", "Overcast", "Rain", "Snow", "Fog", "High Wind", "Thunderstorm"].map((w) => (
+                {["Clear","Partly Cloudy","Overcast","Rain","Snow","Fog","High Wind","Thunderstorm"].map((w) => (
                   <SelectItem key={w} value={w}>{w}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Temperature (°F)</Label>
-            <Input type="number" {...register("temperature")} />
+            <Label>Temperature (°C)</Label>
+            <Input type="number" placeholder="e.g. 32" {...register("temperature")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Wind Speed (mph)</Label>
-            <Input type="number" min="0" {...register("windSpeed")} />
+            <Label>Wind Speed (km/h)</Label>
+            <Input type="number" min="0" placeholder="e.g. 25" {...register("windSpeed")} />
           </div>
           <div className="space-y-1.5">
             <Label>Wind Direction</Label>
-            <Select onValueChange={(v) => setValue("windDirection", v)} defaultValue={data.windDirection}>
+            <Select
+              onValueChange={(v) => setValue("windDirection", v)}
+              value={selectedWindDir || data.windDirection || ""}
+            >
               <SelectTrigger><SelectValue placeholder="Direction..." /></SelectTrigger>
               <SelectContent>
-                {["N","NE","E","SE","S","SW","W","NW"].map((d) => (
+                {WIND_DIRECTIONS.map((d) => (
                   <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
               </SelectContent>
@@ -117,7 +196,7 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
           </div>
           <div className="space-y-1.5">
             <Label>Humidity (%)</Label>
-            <Input type="number" min="0" max="100" {...register("humidity")} />
+            <Input type="number" min="0" max="100" placeholder="e.g. 45" {...register("humidity")} />
           </div>
         </div>
       </div>
@@ -130,13 +209,16 @@ export function Step2_SceneCondition({ data, onChange, onNext, onBack }: Props) 
         </p>
         <div className="grid grid-cols-3 gap-4">
           {[
-            { key: "utilitiesGas" as const, label: "Natural Gas", icon: "🔥" },
-            { key: "utilitiesElectric" as const, label: "Electricity", icon: "⚡" },
-            { key: "utilitiesWater" as const, label: "Water", icon: "💧" },
+            { key: "utilitiesGas" as const,      label: "Natural Gas",  icon: "🔥" },
+            { key: "utilitiesElectric" as const,  label: "Electricity",  icon: "⚡" },
+            { key: "utilitiesWater" as const,     label: "Water",        icon: "💧" },
           ].map(({ key, label, icon }) => (
             <div key={key} className="space-y-1.5">
               <Label>{icon} {label}</Label>
-              <Select onValueChange={(v) => setValue(key, v as "ON" | "OFF" | "UNKNOWN")} defaultValue={data[key]}>
+              <Select
+                onValueChange={(v) => setValue(key, v as "ON" | "OFF" | "UNKNOWN")}
+                defaultValue={data[key]}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {UTILITY_OPTIONS.map((o) => (
