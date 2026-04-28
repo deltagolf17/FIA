@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,14 +37,51 @@ const defaultState: WizardState = {
   finalDetermination: { causeCode: "", causeNarrative: "", determination: "", recommendations: "" },
 };
 
+const DRAFT_KEY = "firetrace_wizard_draft";
+
+function loadDraft(): WizardState {
+  if (typeof window === "undefined") return defaultState;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return defaultState;
+    return { ...defaultState, ...JSON.parse(raw) };
+  } catch {
+    return defaultState;
+  }
+}
+
 export function WizardShell() {
   const router = useRouter();
   const [state, setState] = useState<WizardState>(defaultState);
+  const [hydrated, setHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Restore draft from localStorage after hydration
+  useEffect(() => {
+    setState(loadDraft());
+    setHydrated(true);
+  }, []);
+
+  // Persist draft on every state change (after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [state, hydrated]);
+
   const currentStep = state.step;
   const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
+
+  const hasDraft = hydrated && JSON.stringify(state) !== JSON.stringify(defaultState);
+
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+    setState(defaultState);
+  }, []);
 
   function update<K extends keyof WizardState>(key: K, value: WizardState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
@@ -76,6 +113,7 @@ export function WizardShell() {
         throw new Error(data.error ?? "Failed to create investigation");
       }
       const data = await res.json();
+      localStorage.removeItem(DRAFT_KEY);
       router.push(`/investigations/${data.id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -84,7 +122,19 @@ export function WizardShell() {
   }
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex flex-col gap-4 h-full">
+      {hasDraft && (
+        <div className="flex items-center justify-between bg-authority-50 border border-authority-200 rounded-lg px-4 py-2.5 text-sm">
+          <span className="text-authority-800 font-medium">Draft restored — your previous progress has been loaded.</span>
+          <button
+            onClick={clearDraft}
+            className="text-xs text-authority-600 hover:text-red-600 underline ml-4 transition-colors"
+          >
+            Clear draft
+          </button>
+        </div>
+      )}
+      <div className="flex gap-6 flex-1">
       {/* Step sidebar */}
       <div className="w-56 shrink-0 py-2">
         <div className="space-y-1">
@@ -207,6 +257,7 @@ export function WizardShell() {
             />
           )}
         </div>
+      </div>
       </div>
     </div>
   );

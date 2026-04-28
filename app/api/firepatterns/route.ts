@@ -13,19 +13,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "investigationId, patternType, location, and description are required" }, { status: 400 });
   }
 
-  const pattern = await prisma.firePattern.create({
-    data: {
-      investigationId,
-      patternType,
-      location,
-      description,
-      charDepth: charDepth ? Number(charDepth) : null,
-      nfpaSection: nfpaSection || null,
-      significance: significance || null,
-      notes: notes || null,
-      photoUrls: "[]",
-    },
-  });
-
-  return NextResponse.json(pattern, { status: 201 });
+  try {
+    const pattern = await prisma.firePattern.create({
+      data: {
+        investigationId,
+        patternType,
+        location,
+        description,
+        charDepth: charDepth ? Number(charDepth) : null,
+        nfpaSection: nfpaSection || null,
+        significance: significance || null,
+        notes: notes || null,
+        photoUrls: "[]",
+      },
+    });
+    return NextResponse.json(pattern, { status: 201 });
+  } catch (e) {
+    console.error("Failed to create fire pattern:", e);
+    return NextResponse.json({ error: "Failed to save fire pattern" }, { status: 500 });
+  }
 }

@@ -76,6 +76,8 @@ function parseXMLFeed(xml: string): LiveIncident[] {
   });
 }
 
+// Intentionally public — proxies publicly available Emergency WA feed data.
+// No auth required as this mirrors information already on emergency.wa.gov.au.
 export async function GET() {
   const sources = [
     "https://www.emergency.wa.gov.au/data/message_1.xml",

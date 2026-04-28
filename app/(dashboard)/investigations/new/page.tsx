@@ -13,7 +13,7 @@ export default function NewInvestigationPage() {
           <div className="mb-6">
             <h2 className="text-base font-semibold text-slate-900">Fire Investigation — NFPA 921 Workflow</h2>
             <p className="text-sm text-slate-500 mt-1">
-              Complete all 7 steps to create a fully NFPA 921-compliant investigation record. Required fields are marked with <span className="text-red-500">*</span>.
+              Complete all 8 steps to create a fully NFPA 921-compliant investigation record. Required fields are marked with <span className="text-red-500">*</span>.
             </p>
           </div>
           <WizardShell />
