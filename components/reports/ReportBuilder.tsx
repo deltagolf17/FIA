@@ -19,15 +19,24 @@ interface Investigation {
   zip: string;
   occupancyType: string | null;
   structureType: string | null;
+  constructionType: string | null;
+  buildingAge: number | null;
   areaOfOrigin: string | null;
   pointOfOrigin: string | null;
   causeCode: string | null;
   causeNarrative: string | null;
   firstMaterialIgnited: string | null;
   ignitionSource: string | null;
+  ignitionFactor: string | null;
+  fuelPackage: string | null;
+  fireSpread: string | null;
   determination: string | null;
   notes: string | null;
   weatherConditions: string | null;
+  temperature: number | null;
+  humidity: number | null;
+  windSpeed: number | null;
+  windDirection: string | null;
   utilitiesGas: string | null;
   utilitiesElectric: string | null;
   utilitiesWater: string | null;
@@ -38,6 +47,8 @@ interface Investigation {
     location: string;
     collectedBy: string;
     collectedAt: Date;
+    condition: string | null;
+    notes: string | null;
     labSubmitted: boolean;
   }>;
   firePatterns: Array<{
@@ -46,6 +57,7 @@ interface Investigation {
     description: string;
     charDepth: number | null;
     nfpaSection: string | null;
+    significance: string | null;
   }>;
 }
 
@@ -206,9 +218,18 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
               <ReportSection title="Scene Description" icon="🏠" nfpa="NFPA 921 §13">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Field label="Structure Type" value={inv.structureType?.replace(/_/g, " ") ?? "—"} />
+                  <Field label="Occupancy" value={inv.occupancyType ?? "—"} />
+                  <Field label="Construction" value={inv.constructionType ?? "—"} />
+                  <Field label="Building Age" value={inv.buildingAge ? `${inv.buildingAge} yrs` : "—"} />
                   <Field label="Weather" value={inv.weatherConditions ?? "—"} />
+                  <Field label="Temperature" value={inv.temperature != null ? `${inv.temperature}°C` : "—"} />
+                  <Field label="Humidity" value={inv.humidity != null ? `${inv.humidity}%` : "—"} />
+                  <Field label="Wind" value={
+                    [inv.windSpeed != null ? `${inv.windSpeed} km/h` : null, inv.windDirection].filter(Boolean).join(" ") || "—"
+                  } />
                   <Field label="Gas Utilities" value={inv.utilitiesGas ?? "Unknown"} />
                   <Field label="Electric" value={inv.utilitiesElectric ?? "Unknown"} />
+                  <Field label="Water" value={inv.utilitiesWater ?? "Unknown"} />
                 </div>
               </ReportSection>
             )}
@@ -223,9 +244,10 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
                         <span className="text-xs font-semibold text-fire-700">{p.patternType.replace(/_/g, " ")}</span>
                         {p.nfpaSection && <span className="text-xs text-slate-400">{p.nfpaSection}</span>}
                       </div>
-                      <p className="text-xs text-slate-500">Location: {p.location}</p>
-                      <p className="text-sm text-slate-700 mt-1">{p.description}</p>
-                      {p.charDepth && <p className="text-xs text-slate-500 mt-1">Char depth: {p.charDepth} mm</p>}
+                      <p className="text-xs text-slate-500 mb-1">📍 {p.location}</p>
+                      <p className="text-sm text-slate-700">{p.description}</p>
+                      {p.charDepth != null && <p className="text-xs text-slate-500 mt-1">Char depth: {p.charDepth} mm</p>}
+                      {p.significance && <p className="text-xs text-authority-700 mt-1 font-medium">Significance: {p.significance}</p>}
                     </div>
                   ))}
                 </div>
@@ -249,9 +271,15 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
                   <Field label="NFPA 921 Classification" value={inv.causeCode ?? "Undetermined"} />
                   <Field label="First Material Ignited" value={inv.firstMaterialIgnited ?? "—"} />
                   <Field label="Ignition Source" value={inv.ignitionSource ?? "—"} />
+                  <Field label="Ignition Factor" value={inv.ignitionFactor ?? "—"} />
+                  <Field label="Fuel Package" value={inv.fuelPackage ?? "—"} />
+                  <Field label="Fire Spread" value={inv.fireSpread ?? "—"} />
                 </div>
                 {inv.causeNarrative && (
-                  <p className="text-sm text-slate-700 leading-relaxed">{inv.causeNarrative}</p>
+                  <div className="mt-2 p-3 bg-slate-50 rounded-lg border-l-4 border-fire-500">
+                    <p className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Cause Narrative</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{inv.causeNarrative}</p>
+                  </div>
                 )}
               </ReportSection>
             )}
@@ -266,15 +294,28 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
                       <th className="text-left py-1 font-semibold text-slate-600">Description</th>
                       <th className="text-left py-1 font-semibold text-slate-600">Location</th>
                       <th className="text-left py-1 font-semibold text-slate-600">Collected</th>
+                      <th className="text-left py-1 font-semibold text-slate-600">Lab</th>
                     </tr>
                   </thead>
                   <tbody>
                     {inv.evidence.map((e) => (
                       <tr key={e.itemNumber} className="border-b border-slate-100">
                         <td className="py-1.5 font-mono font-semibold text-authority-700">{e.itemNumber}</td>
-                        <td className="py-1.5">{e.description}</td>
+                        <td className="py-1.5">
+                          <p>{e.description}</p>
+                          {e.condition && <p className="text-slate-400 mt-0.5">Condition: {e.condition}</p>}
+                          {e.notes && <p className="text-slate-400 mt-0.5 italic">{e.notes}</p>}
+                        </td>
                         <td className="py-1.5 text-slate-500">{e.location}</td>
-                        <td className="py-1.5 text-slate-500">{formatDate(e.collectedAt)}</td>
+                        <td className="py-1.5 text-slate-500 whitespace-nowrap">{formatDate(e.collectedAt)}</td>
+                        <td className="py-1.5">
+                          <span className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                            e.labSubmitted ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"
+                          )}>
+                            {e.labSubmitted ? "Submitted" : "Pending"}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -288,6 +329,12 @@ export function ReportBuilder({ investigation: inv }: ReportBuilderProps) {
                 <p className="text-sm text-slate-700 leading-relaxed">
                   {inv.determination ?? "Investigation is ongoing. Final determination pending."}
                 </p>
+                {inv.notes && (
+                  <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Investigator Notes</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{inv.notes}</p>
+                  </div>
+                )}
               </ReportSection>
             )}
 

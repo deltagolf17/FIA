@@ -21,9 +21,20 @@ interface Investigation {
   temperature: number | null;
   humidity: number | null;
   windSpeed: number | null;
+  windDirection: string | null;
   utilitiesGas: string | null;
   utilitiesElectric: string | null;
   utilitiesWater: string | null;
+  areaOfOrigin: string | null;
+  pointOfOrigin: string | null;
+  causeCode: string | null;
+  causeNarrative: string | null;
+  firstMaterialIgnited: string | null;
+  ignitionSource: string | null;
+  ignitionFactor: string | null;
+  fuelPackage: string | null;
+  fireSpread: string | null;
+  determination: string | null;
 }
 
 export function EditInvestigationButton({ investigation }: { investigation: Investigation }) {

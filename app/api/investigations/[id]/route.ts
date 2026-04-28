@@ -19,11 +19,11 @@ export async function PATCH(
     // workflow fields
     "status", "causeCode", "notes", "areaOfOrigin", "pointOfOrigin",
     "causeNarrative", "determination", "nfpa921Compliant", "aiSuggestion",
-    "firstMaterialIgnited", "ignitionSource", "ignitionFactor", "fuelPackage",
+    "firstMaterialIgnited", "ignitionSource", "ignitionFactor", "fuelPackage", "fireSpread",
     // editable scene / incident fields
     "address", "city", "state", "zip", "incidentDate", "dispatchTime", "arrivalTime",
     "structureType", "occupancyType", "constructionType", "buildingAge", "numStories",
-    "weatherConditions", "temperature", "humidity", "windSpeed",
+    "weatherConditions", "temperature", "humidity", "windSpeed", "windDirection",
     "utilitiesGas", "utilitiesElectric", "utilitiesWater",
     // re-assignment (handled with privilege check below)
     "investigatorId",

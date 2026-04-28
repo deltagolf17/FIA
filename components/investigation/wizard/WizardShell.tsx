@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 import { Step1_IncidentBasics } from "./Step1_IncidentBasics";
@@ -50,18 +50,63 @@ function loadDraft(): WizardState {
   }
 }
 
+const PENDING_KEY = "firetrace_wizard_pending";
+
 export function WizardShell() {
   const router = useRouter();
   const [state, setState] = useState<WizardState>(defaultState);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]         = useState("");
+  const [online, setOnline]       = useState(true);
+  const pendingRef = useRef(false);
 
   // Restore draft from localStorage after hydration
   useEffect(() => {
     setState(loadDraft());
+    setOnline(navigator.onLine);
     setHydrated(true);
   }, []);
+
+  // Track online/offline state
+  useEffect(() => {
+    function up()   { setOnline(true); }
+    function down() { setOnline(false); }
+    window.addEventListener("online",  up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+
+  // When connectivity is restored, retry a pending submission
+  useEffect(() => {
+    if (!online || !hydrated) return;
+    const pending = localStorage.getItem(PENDING_KEY);
+    if (!pending || pendingRef.current) return;
+    pendingRef.current = true;
+    const saved: WizardState = JSON.parse(pending);
+    setSubmitting(true);
+    setError("");
+    fetch("/api/investigations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(saved),
+    })
+      .then(async (res) => {
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Submit failed"); }
+        return res.json();
+      })
+      .then((data) => {
+        localStorage.removeItem(PENDING_KEY);
+        localStorage.removeItem(DRAFT_KEY);
+        router.push(`/investigations/${data.id}`);
+      })
+      .catch((e) => {
+        setError((e as Error).message);
+        pendingRef.current = false;
+        setSubmitting(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, hydrated]);
 
   // Persist draft on every state change (after hydration)
   useEffect(() => {
@@ -100,6 +145,11 @@ export function WizardShell() {
   }
 
   async function submit() {
+    if (!online) {
+      localStorage.setItem(PENDING_KEY, JSON.stringify(state));
+      setError("You are offline. Your investigation has been queued and will submit automatically when connectivity is restored.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -123,7 +173,14 @@ export function WizardShell() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {hasDraft && (
+      {!online && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          <span className="font-medium">You are offline.</span>
+          <span className="text-amber-700">Your draft is being saved locally and will submit automatically when connectivity is restored.</span>
+        </div>
+      )}
+      {hasDraft && online && (
         <div className="flex items-center justify-between bg-authority-50 border border-authority-200 rounded-lg px-4 py-2.5 text-sm">
           <span className="text-authority-800 font-medium">Draft restored — your previous progress has been loaded.</span>
           <button
