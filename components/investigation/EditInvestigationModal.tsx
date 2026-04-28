@@ -48,12 +48,8 @@ function toDateInput(v: Date | string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const [form, setForm] = useState({
+function buildInitial(inv: Investigation) {
+  return {
     address:          inv.address,
     city:             inv.city,
     state:            inv.state,
@@ -71,10 +67,24 @@ export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
     utilitiesGas:     inv.utilitiesGas ?? "UNKNOWN",
     utilitiesElectric:inv.utilitiesElectric ?? "UNKNOWN",
     utilitiesWater:   inv.utilitiesWater ?? "UNKNOWN",
-  });
+  };
+}
+
+export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState(() => buildInitial(inv));
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(buildInitial(inv));
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function handleClose() {
+    if (isDirty && !confirm("You have unsaved changes. Discard them?")) return;
+    onClose();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -129,11 +139,14 @@ export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <h2 className="font-semibold text-slate-900">Edit Investigation Details</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100">
+          <div>
+            <h2 className="font-semibold text-slate-900">Edit Investigation Details</h2>
+            {isDirty && <p className="text-xs text-amber-600 mt-0.5">Unsaved changes</p>}
+          </div>
+          <button onClick={handleClose} className="p-1 rounded-lg hover:bg-slate-100">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -242,7 +255,7 @@ export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
           </section>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving} className="flex-1">Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={saving} className="flex-1">Cancel</Button>
             <Button type="submit" disabled={saving} className="flex-1 bg-authority-700 hover:bg-authority-800 gap-1.5">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes

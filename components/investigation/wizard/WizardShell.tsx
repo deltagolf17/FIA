@@ -134,10 +134,35 @@ export function WizardShell() {
           </button>
         </div>
       )}
-      <div className="flex gap-6 flex-1">
-      {/* Step sidebar */}
-      <div className="w-56 shrink-0 py-2">
-        <div className="space-y-1">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+      {/* Step indicator — horizontal on mobile, vertical sidebar on desktop */}
+      <div className="lg:w-56 lg:shrink-0 lg:py-2">
+        {/* Mobile: horizontal step pills */}
+        <div className="flex lg:hidden overflow-x-auto gap-2 pb-2 -mx-1 px-1">
+          {STEPS.map((step) => {
+            const done = step.id < currentStep;
+            const active = step.id === currentStep;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => goToStep(step.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors shrink-0",
+                  active ? "bg-authority-700 text-white border-authority-700" :
+                  done  ? "bg-green-50 text-green-700 border-green-200" :
+                          "bg-white text-slate-400 border-slate-200"
+                )}
+              >
+                {done ? <CheckCircle2 className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                {step.id}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Desktop: vertical list */}
+        <div className="hidden lg:block space-y-1">
           {STEPS.map((step) => {
             const done = step.id < currentStep;
             const active = step.id === currentStep;
@@ -173,7 +198,7 @@ export function WizardShell() {
         </div>
 
         {/* Progress */}
-        <div className="mt-4 px-3">
+        <div className="mt-4 px-3 hidden lg:block">
           <div className="flex justify-between text-xs text-slate-400 mb-1">
             <span>Progress</span>
             <span>{Math.round(progress)}%</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, ChevronDown, ChevronUp, Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -37,7 +37,19 @@ export function AIAssistPanel({
   const [saved, setSaved] = useState(!!savedSuggestion);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [resetInMinutes, setResetInMinutes] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai/rate-limit-status")
+      .then((r) => r.json())
+      .then((d) => {
+        setRemaining(d.remaining ?? null);
+        setResetInMinutes(d.resetInMinutes ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   async function runAnalysis() {
     setLoading(true);
@@ -66,6 +78,7 @@ export function AIAssistPanel({
 
       if (res.status === 429) {
         const data = await res.json();
+        setRemaining(0);
         throw new Error(data.error ?? "Rate limit exceeded. Please wait before trying again.");
       }
       if (!res.ok) throw new Error("AI analysis failed");
@@ -81,10 +94,15 @@ export function AIAssistPanel({
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
-        setError("AI analysis failed. Check that ANTHROPIC_API_KEY is set.");
+        setError((e as Error).message || "AI analysis failed. Check that ANTHROPIC_API_KEY is set.");
       }
     } finally {
       setLoading(false);
+      // Refresh remaining count after use
+      fetch("/api/ai/rate-limit-status")
+        .then((r) => r.json())
+        .then((d) => { setRemaining(d.remaining ?? null); setResetInMinutes(d.resetInMinutes ?? null); })
+        .catch(() => {});
     }
   }
 
@@ -130,7 +148,18 @@ export function AIAssistPanel({
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-900">AI Cause Analysis</p>
-            <p className="text-xs text-slate-500">Claude · NFPA 921 methodology</p>
+            <p className="text-xs text-slate-500">
+              Claude · NFPA 921 methodology
+              {remaining !== null && (
+                <span className={cn(
+                  "ml-2 font-medium",
+                  remaining === 0 ? "text-red-500" : remaining <= 3 ? "text-amber-600" : "text-slate-400"
+                )}>
+                  {remaining}/{10} uses left
+                  {remaining === 0 && resetInMinutes !== null && ` · resets in ${resetInMinutes}m`}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -4,16 +4,52 @@ import { prisma } from "@/lib/db";
 import { generateCaseNumber, NFPA921_CHECKLIST } from "@/lib/nfpa/nfpa921";
 import type { WizardState } from "@/types";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const investigations = await prisma.investigation.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { investigator: { select: { name: true } } },
-  });
+  const { searchParams } = new URL(req.url);
+  const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1", 10));
+  const limit  = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "25", 10)));
+  const status = searchParams.get("status") || undefined;
+  const cause  = searchParams.get("cause")  || undefined;
+  const q      = searchParams.get("q")      || undefined;
 
-  return NextResponse.json(investigations);
+  const where: Record<string, unknown> = {};
+  if (status) where.status = status;
+  if (cause)  where.causeCode = cause;
+  if (q) {
+    where.OR = [
+      { caseNumber:  { contains: q, mode: "insensitive" } },
+      { address:     { contains: q, mode: "insensitive" } },
+      { city:        { contains: q, mode: "insensitive" } },
+      { investigator: { name: { contains: q, mode: "insensitive" } } },
+    ];
+  }
+
+  try {
+    const [investigations, total] = await Promise.all([
+      prisma.investigation.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: (page - 1) * limit,
+        include: { investigator: { select: { name: true } } },
+      }),
+      prisma.investigation.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      investigations,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      limit,
+    });
+  } catch (e) {
+    console.error("Failed to fetch investigations:", e);
+    return NextResponse.json({ error: "Failed to fetch investigations" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {

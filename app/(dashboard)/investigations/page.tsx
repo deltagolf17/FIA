@@ -27,9 +27,10 @@ async function getInvestigations(p: SearchParams) {
   if (p.cause) where.causeCode = p.cause;
   if (p.q) {
     where.OR = [
-      { caseNumber: { contains: p.q } },
-      { address:    { contains: p.q } },
-      { city:       { contains: p.q } },
+      { caseNumber:  { contains: p.q, mode: "insensitive" } },
+      { address:     { contains: p.q, mode: "insensitive" } },
+      { city:        { contains: p.q, mode: "insensitive" } },
+      { investigator: { name: { contains: p.q, mode: "insensitive" } } },
     ];
   }
   const [items, total] = await Promise.all([

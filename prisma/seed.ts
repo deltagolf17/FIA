@@ -63,6 +63,20 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: "supervisor@firetrace.app" },
+    update: {},
+    create: {
+      name: "David Okafor",
+      email: "supervisor@firetrace.app",
+      hashedPassword,
+      role: "SUPERVISOR",
+      department: "Fire Investigation Unit",
+      badgeNumber: "SUP-007",
+      certifications: "NFPA 1033, CFI, IAAI-FIT",
+    },
+  });
+
   console.log("✅ Users created");
 
   // NFPA 921 Checklist template
@@ -332,6 +346,7 @@ async function main() {
   console.log("\n🚀 FireTrace Pro seeded successfully!");
   console.log("\nDemo Credentials:");
   console.log("  Admin:        admin@firetrace.app / demo1234");
+  console.log("  Supervisor:   supervisor@firetrace.app / demo1234");
   console.log("  Investigator: investigator@firetrace.app / demo1234");
   console.log("  Firefighter:  firefighter@firetrace.app / demo1234");
   console.log("  Adjuster:     adjuster@firetrace.app / demo1234");

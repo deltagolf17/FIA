@@ -110,6 +110,11 @@ model Investigation {
   checklistItems       ChecklistItem[]
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+
+  @@index([status])
+  @@index([causeCode])
+  @@index([investigatorId])
+  @@index([createdAt])
 }
 
 model Evidence {
@@ -133,6 +138,8 @@ model Evidence {
   chainOfCustody  CustodyEntry[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([investigationId])
 }
 
 model CustodyEntry {
@@ -145,6 +152,8 @@ model CustodyEntry {
   location   String?
   notes      String?
   signature  String?
+
+  @@index([evidenceId])
 }
 
 model FirePattern {
@@ -161,6 +170,8 @@ model FirePattern {
   significance    String?
   notes           String?
   createdAt       DateTime @default(now())
+
+  @@index([investigationId])
 }
 
 model InsuranceClaim {
@@ -195,4 +206,6 @@ model ChecklistItem {
   completed       Boolean  @default(false)
   completedAt     DateTime?
   notes           String?
+
+  @@index([investigationId])
 }

@@ -21,6 +21,7 @@ import { EditInvestigationButton } from "@/components/investigation/EditInvestig
 import { FieldChecklistDropdown } from "@/components/investigation/FieldChecklistDropdown";
 import { InvestigationNotesEditor } from "@/components/investigation/InvestigationNotesEditor";
 import { ReassignInvestigatorButton } from "@/components/investigation/ReassignInvestigatorButton";
+import { IncidentMiniMap } from "@/components/investigation/IncidentMiniMap";
 
 async function getInvestigation(id: string) {
   return prisma.investigation.findUnique({
@@ -197,6 +198,12 @@ export default async function InvestigationDetailPage({ params }: Props) {
                   ))}
                 </CardContent>
               </Card>
+
+              {inv.lat != null && inv.lng != null && (
+                <div className="md:col-span-2">
+                  <IncidentMiniMap lat={inv.lat} lng={inv.lng} address={`${inv.address}, ${inv.city}`} />
+                </div>
+              )}
 
               <Card className="md:col-span-2">
                 <CardHeader className="pb-3">
