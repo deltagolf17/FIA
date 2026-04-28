@@ -67,6 +67,8 @@ export interface IncidentBasicsData {
   zip: string;
   occupancyType: string;
   notes: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface SceneConditionData {

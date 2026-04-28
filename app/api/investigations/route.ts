@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       zip: incidentBasics.zip,
       occupancyType: incidentBasics.occupancyType,
       notes: incidentBasics.notes,
+      lat: incidentBasics.lat ?? null,
+      lng: incidentBasics.lng ?? null,
       structureType: sceneCondition.structureType,
       numStories: sceneCondition.numStories ? parseInt(sceneCondition.numStories) : null,
       constructionType: sceneCondition.constructionType,

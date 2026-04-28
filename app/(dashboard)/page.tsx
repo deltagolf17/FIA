@@ -5,6 +5,7 @@ import { KPICards } from "@/components/dashboard/KPICards";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { CauseTrendsChart } from "@/components/dashboard/CauseTrendsChart";
 import { ActiveCasesMap } from "@/components/dashboard/ActiveCasesMap";
+import { EmergencyWAPanel } from "@/components/dashboard/EmergencyWAPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, MapPin } from "lucide-react";
 
@@ -116,6 +117,9 @@ export default async function DashboardPage() {
             }))} />
           </CardContent>
         </Card>
+
+        {/* Emergency WA live feed */}
+        <EmergencyWAPanel />
       </div>
     </div>
   );

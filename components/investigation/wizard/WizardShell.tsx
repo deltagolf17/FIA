@@ -153,6 +153,8 @@ export function WizardShell() {
               onChange={(d) => update("sceneCondition", d)}
               onNext={next}
               onBack={back}
+              incidentLat={state.incidentBasics.lat}
+              incidentLng={state.incidentBasics.lng}
             />
           )}
           {currentStep === 3 && (
