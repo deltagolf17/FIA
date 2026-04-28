@@ -6,17 +6,19 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 import {
   LayoutDashboard, Flame, BarChart3,
-  Shield, Users, Settings, Building2, Menu, X,
+  Shield, Users, Settings, Building2, Menu, X, Radio, Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
-  { label: "Dashboard",    href: "/",              icon: LayoutDashboard, roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","INSURANCE_ADJUSTER","ADMIN"] },
-  { label: "Investigations",href: "/investigations", icon: Flame,           roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","ADMIN"] },
-  { label: "Analytics",    href: "/analytics",      icon: BarChart3,        roles: ["INVESTIGATOR","SUPERVISOR","ADMIN"] },
-  { label: "Insurance",    href: "/insurance",      icon: Building2,        roles: ["INSURANCE_ADJUSTER","SUPERVISOR","ADMIN"] },
-  { label: "Users",        href: "/admin/users",    icon: Users,            roles: ["ADMIN"] },
-  { label: "Settings",     href: "/admin/settings", icon: Settings,         roles: ["ADMIN"] },
+  { label: "Dashboard",      href: "/",               icon: LayoutDashboard, roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","INSURANCE_ADJUSTER","ADMIN"] },
+  { label: "Investigations", href: "/investigations",  icon: Flame,           roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","ADMIN"] },
+  { label: "Live Incidents", href: "/live-incidents",  icon: Radio,           roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","ADMIN"] },
+  { label: "Weather Map",    href: "/weather-map",     icon: Cloud,           roles: ["FIREFIGHTER","INVESTIGATOR","SUPERVISOR","ADMIN"] },
+  { label: "Analytics",      href: "/analytics",       icon: BarChart3,       roles: ["INVESTIGATOR","SUPERVISOR","ADMIN"] },
+  { label: "Insurance",      href: "/insurance",       icon: Building2,       roles: ["INSURANCE_ADJUSTER","SUPERVISOR","ADMIN"] },
+  { label: "Users",          href: "/admin/users",     icon: Users,           roles: ["ADMIN"] },
+  { label: "Settings",       href: "/admin/settings",  icon: Settings,        roles: ["ADMIN"] },
 ];
 
 function NavContent({ onClose }: { onClose?: () => void }) {
