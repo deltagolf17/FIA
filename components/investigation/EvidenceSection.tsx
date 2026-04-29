@@ -13,6 +13,7 @@ import {
 import { PhotoAnalysisModal } from "./PhotoAnalysisModal";
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
+import { useUploadThing } from "@/lib/uploadthing";
 
 interface CustodyEntry {
   id: string;
@@ -55,28 +56,6 @@ function parsePhotos(raw?: string): string[] {
   try { return JSON.parse(raw ?? "[]"); } catch { return []; }
 }
 
-function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.src = e.target!.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 function nextItemNumber(items: EvidenceItem[]): string {
   return `E-${String(items.length + 1).padStart(3, "0")}`;
@@ -108,22 +87,26 @@ function AddEvidenceForm({
     condition: "",
     notes: "",
   });
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos]     = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]       = useState("");
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { startUpload, isUploading } = useUploadThing("evidencePhoto");
 
   function set(field: keyof AddFormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function handleFiles(files: FileList | File[] | null) {
+  function handleFiles(files: FileList | File[] | null) {
     if (!files) return;
-    const newFiles = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 5 - photos.length);
+    const newFiles = Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, 5 - photos.length);
     if (!newFiles.length) return;
-    const urls = await Promise.all(newFiles.map((f) => compressImage(f)));
+    const urls = newFiles.map((f) => URL.createObjectURL(f));
     setPhotos((p) => [...p, ...newFiles]);
     setPreviews((p) => [...p, ...urls]);
   }
@@ -140,6 +123,7 @@ function AddEvidenceForm({
   }
 
   function removePhoto(i: number) {
+    URL.revokeObjectURL(previews[i]);
     setPhotos((p) => p.filter((_, idx) => idx !== i));
     setPreviews((p) => p.filter((_, idx) => idx !== i));
   }
@@ -147,26 +131,34 @@ function AddEvidenceForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description.trim()) { setError("Description is required."); return; }
-    if (!form.location.trim()) { setError("Location is required."); return; }
+    if (!form.location.trim())    { setError("Location is required.");    return; }
     setError("");
     setSubmitting(true);
     try {
-      const photoUrls = await Promise.all(photos.map((f) => compressImage(f)));
+      let photoUrlsJson = "[]";
+      if (photos.length > 0) {
+        const uploaded = await startUpload(photos);
+        if (!uploaded) throw new Error("Photo upload failed — ensure UPLOADTHING_SECRET is configured.");
+        photoUrlsJson = JSON.stringify(uploaded.map((f) => f.ufsUrl));
+        previews.forEach((url) => URL.revokeObjectURL(url));
+      }
       const res = await fetch("/api/evidence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           investigationId,
-          itemNumber: form.itemNumber.trim() || defaultItemNumber,
+          itemNumber:  form.itemNumber.trim()  || defaultItemNumber,
           description: form.description.trim(),
-          location: form.location.trim(),
-          condition: form.condition.trim() || null,
-          notes: form.notes.trim() || null,
-          photoUrls: JSON.stringify(photoUrls),
+          location:    form.location.trim(),
+          condition:   form.condition.trim()   || null,
+          notes:       form.notes.trim()       || null,
+          photoUrls:   photoUrlsJson,
         }),
       });
       if (!res.ok) { setError("Failed to save evidence item."); return; }
       onSaved();
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -298,12 +290,12 @@ function AddEvidenceForm({
       {error && <p className="text-xs text-red-600">{error}</p>}
 
       <div className="flex items-center justify-end gap-2 pt-1">
-        <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>
+        <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting || isUploading}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={submitting} className="gap-1.5">
-          {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-          Save Evidence Item
+        <Button type="submit" size="sm" disabled={submitting || isUploading} className="gap-1.5">
+          {(submitting || isUploading) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          {isUploading ? "Uploading photos…" : submitting ? "Saving…" : "Save Evidence Item"}
         </Button>
       </div>
     </form>
