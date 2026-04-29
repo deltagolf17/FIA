@@ -134,6 +134,11 @@ export default function LoginPage() {
       <p className="text-center text-white/50 text-xs mt-6">
         FireTrace Pro v1.0 · NFPA 921 · NFPA 1033 Compliant
       </p>
+      <p className="text-center mt-2">
+        <a href="/landing" className="text-white/40 hover:text-white/70 text-xs underline transition-colors">
+          About FireTrace Pro
+        </a>
+      </p>
     </div>
   );
 }

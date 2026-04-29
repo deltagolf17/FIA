@@ -29,7 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
   ARCHIVED:       "#64748b",
 };
 
-const WA_CENTER = { lat: -25.5, lng: 122.0 };
+const WA_CENTER = { lat: -31.9505, lng: 115.8605 };
 
 const MAP_STYLES = [
   { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },

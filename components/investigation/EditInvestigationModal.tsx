@@ -243,7 +243,7 @@ export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
                         <Input id="state" value={form.state} onChange={(e) => set("state", e.target.value)} required maxLength={2} className="uppercase" />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="zip">ZIP</Label>
+                        <Label htmlFor="zip">Postcode</Label>
                         <Input id="zip" value={form.zip} onChange={(e) => set("zip", e.target.value)} />
                       </div>
                     </div>

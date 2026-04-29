@@ -79,7 +79,7 @@ export default function LandingPage() {
             {[
               { val: "NFPA 921", label: "Fully Compliant" },
               { val: "5",        label: "User Roles" },
-              { val: "7-Step",   label: "Investigation Wizard" },
+              { val: "8-Step",   label: "Investigation Wizard" },
             ].map(({ val, label }) => (
               <div key={label} className="text-center">
                 <p className="text-2xl font-black text-white">{val}</p>
@@ -109,7 +109,7 @@ export default function LandingPage() {
                 icon: Shield,
                 color: "bg-authority-100 text-authority-800",
                 title: "NFPA 921 Wizard",
-                desc: "7-step guided investigation workflow enforcing NFPA 921 methodology at every field. Zod-validated — can't advance until required data is complete.",
+                desc: "8-step guided investigation workflow enforcing NFPA 921 methodology at every field. Zod-validated — can't advance until required data is complete.",
                 badge: "NFPA 921 §12–20",
               },
               {

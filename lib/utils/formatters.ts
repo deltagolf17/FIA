@@ -1,14 +1,14 @@
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-AU", {
     style: "currency",
-    currency: "USD",
+    currency: "AUD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
 export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString("en-US", {
+  return new Date(date).toLocaleDateString("en-AU", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -16,7 +16,7 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatDateTime(date: Date | string): string {
-  return new Date(date).toLocaleString("en-US", {
+  return new Date(date).toLocaleString("en-AU", {
     year: "numeric",
     month: "short",
     day: "numeric",
