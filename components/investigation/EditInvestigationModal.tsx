@@ -244,7 +244,7 @@ export function EditInvestigationModal({ investigation: inv, onClose }: Props) {
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="zip">Postcode</Label>
-                        <Input id="zip" value={form.zip} onChange={(e) => set("zip", e.target.value)} />
+                        <Input id="zip" value={form.zip} onChange={(e) => set("zip", e.target.value)} maxLength={4} inputMode="numeric" pattern="[0-9]{4}" />
                       </div>
                     </div>
                     <div className="space-y-1">

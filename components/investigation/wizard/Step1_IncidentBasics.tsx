@@ -109,11 +109,11 @@ export function Step1_IncidentBasics({ data, onChange, onNext }: Props) {
         </div>
         <div className="space-y-1.5">
           <Label>State <span className="text-red-500">*</span></Label>
-          <Input placeholder="WA" maxLength={3} className="uppercase" {...register("state")} />
+          <Input placeholder="WA" maxLength={2} className="uppercase" {...register("state")} />
         </div>
         <div className="space-y-1.5">
           <Label>Postcode</Label>
-          <Input placeholder="6000" {...register("zip")} />
+          <Input placeholder="6000" maxLength={4} inputMode="numeric" pattern="[0-9]{4}" {...register("zip")} />
         </div>
       </div>
 

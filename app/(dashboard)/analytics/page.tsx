@@ -30,7 +30,7 @@ async function getAnalyticsData() {
   const now = new Date();
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return d.toLocaleString("default", { month: "short" });
+    return d.toLocaleString("en-AU", { month: "short" });
   });
 
   const trendData = months.map((month, i) => {

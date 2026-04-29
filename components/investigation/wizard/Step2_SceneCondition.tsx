@@ -28,8 +28,7 @@ const UTILITY_OPTIONS = [
 const WIND_DIRECTIONS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
 
 export function Step2_SceneCondition({ data, onChange, onNext, onBack, incidentLat, incidentLng }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, getValues, setValue, watch } = useForm<any>({ defaultValues: data });
+  const { register, getValues, setValue, watch } = useForm<SceneConditionData>({ defaultValues: data });
 
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherSource, setWeatherSource] = useState("");

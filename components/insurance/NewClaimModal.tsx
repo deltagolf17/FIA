@@ -10,7 +10,7 @@ interface Investigation {
   id: string;
   caseNumber: string;
   address: string;
-  hasClam: boolean;
+  hasClaim: boolean;
 }
 
 interface Props {
@@ -25,7 +25,7 @@ function generateClaimNumber() {
 
 export function NewClaimModal({ investigations }: Props) {
   const router = useRouter();
-  const available = investigations.filter((i) => !i.hasClam);
+  const available = investigations.filter((i) => !i.hasClaim);
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);

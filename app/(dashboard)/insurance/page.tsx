@@ -79,7 +79,7 @@ export default async function InsurancePage({
     id: inv.id,
     caseNumber: inv.caseNumber,
     address: inv.address,
-    hasClam: !!inv.insuranceClaim,
+    hasClaim: !!inv.insuranceClaim,
   }));
 
   const openClaims = claims.filter((c) => c.status === "OPEN" || c.status === "UNDER_REVIEW").length;
