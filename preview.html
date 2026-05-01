@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FireTrace Pro — Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; }
+
+  /* NAV */
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; height: 56px; display: flex; align-items: center; padding: 0 24px; justify-content: space-between; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+  .nav-logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #1e3a8a, #ea580c); display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+  .logo-text { font-weight: 800; font-size: 15px; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .tab { padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; background: transparent; color: #64748b; }
+  .tab.active { background: #1e3a8a; color: white; }
+  .tab:hover:not(.active) { background: #f1f5f9; color: #0f172a; }
+
+  /* SCREENS */
+  .screen { display: none; padding-top: 56px; min-height: 100vh; }
+  .screen.active { display: block; }
+
+  /* ── LANDING ── */
+  .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 80px 24px 60px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -60px; right: -60px; width: 300px; height: 300px; background: #ea580c; border-radius: 50%; opacity: 0.08; }
+  .hero::after { content: ''; position: absolute; bottom: -40px; left: -40px; width: 200px; height: 200px; background: #3b82f6; border-radius: 50%; opacity: 0.10; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 700; padding: 6px 14px; border-radius: 99px; margin-bottom: 28px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .hero h1 { font-size: 56px; font-weight: 900; color: white; line-height: 1.05; margin-bottom: 20px; letter-spacing: -0.02em; }
+  .hero h1 span { color: #fb923c; }
+  .hero p { color: rgba(255,255,255,0.7); font-size: 18px; max-width: 560px; margin: 0 auto 36px; line-height: 1.7; }
+  .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary { background: #ea580c; color: white; border: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s; box-shadow: 0 4px 20px rgba(234,88,12,0.4); }
+  .btn-primary:hover { background: #c2410c; transform: translateY(-1px); }
+  .btn-outline { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.25); padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+  .btn-outline:hover { background: rgba(255,255,255,0.18); }
+  .hero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 520px; margin: 48px auto 0; }
+  .hero-stat { text-align: center; }
+  .hero-stat .val { font-size: 22px; font-weight: 900; color: white; }
+  .hero-stat .sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 4px; }
+
+  /* MOCK BROWSER */
+  .preview-section { padding: 64px 24px; background: #f1f5f9; }
+  .section-label { text-align: center; margin-bottom: 40px; }
+  .section-label .eyebrow { font-size: 11px; font-weight: 700; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .section-label h2 { font-size: 32px; font-weight: 900; }
+  .section-label p { color: #64748b; margin-top: 8px; font-size: 15px; }
+  .browser { max-width: 900px; margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.18); border: 1px solid #e2e8f0; }
+  .browser-bar { background: #e2e8f0; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+  .browser-dots { display: flex; gap: 5px; }
+  .browser-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .d1 { background: #ef4444; }
+  .d2 { background: #f59e0b; }
+  .d3 { background: #22c55e; }
+  .browser-url { flex: 1; background: white; border-radius: 6px; padding: 4px 12px; font-size: 11px; color: #94a3b8; font-family: monospace; border: 1px solid #e2e8f0; text-align: center; max-width: 280px; margin: 0 auto; }
+  .app-shell { display: flex; height: 440px; background: white; }
+
+  /* MOCK SIDEBAR */
+  .mock-sidebar { width: 192px; background: #0f172a; flex-shrink: 0; display: flex; flex-direction: column; }
+  .mock-sidebar-logo { padding: 14px 16px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 8px; }
+  .mock-logo-icon { width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(135deg, #1e3a8a, #ea580c); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .mock-logo-text { font-size: 11px; font-weight: 800; color: white; }
+  .mock-logo-sub { font-size: 9px; color: #475569; }
+  .mock-nav { flex: 1; padding: 8px; overflow: hidden; }
+  .mock-nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 1px; }
+  .mock-nav-item.active { background: #ea580c; color: white; }
+  .mock-nav-item span { font-size: 13px; }
+  .mock-user { padding: 10px 12px; border-top: 1px solid #1e293b; display: flex; align-items: center; gap: 8px; }
+  .mock-avatar { width: 26px; height: 26px; border-radius: 50%; background: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: white; flex-shrink: 0; }
+  .mock-user-name { font-size: 10px; font-weight: 700; color: white; }
+  .mock-user-role { font-size: 9px; color: #475569; }
+
+  /* MOCK MAIN */
+  .mock-main { flex: 1; background: #f8fafc; padding: 16px; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+  .mock-header { display: flex; align-items: center; justify-content: space-between; }
+  .mock-title { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .mock-subtitle { font-size: 10px; color: #94a3b8; }
+  .mock-btn { background: #ea580c; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 10px; font-weight: 700; cursor: default; }
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .kpi-card { border-radius: 10px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.8); }
+  .kpi-label { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .kpi-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .kpi-val { font-size: 26px; font-weight: 900; line-height: 1; }
+  .kpi-blue { background: #eff6ff; } .kpi-blue .kpi-val { color: #1e3a8a; } .kpi-blue .kpi-dot { background: #2563eb; }
+  .kpi-orange { background: #fff7ed; } .kpi-orange .kpi-val { color: #c2410c; } .kpi-orange .kpi-dot { background: #ea580c; }
+  .kpi-red { background: #fef2f2; } .kpi-red .kpi-val { color: #b91c1c; } .kpi-red .kpi-dot { background: #ef4444; }
+  .kpi-green { background: #f0fdf4; } .kpi-green .kpi-val { color: #15803d; } .kpi-green .kpi-dot { background: #22c55e; }
+  .mock-table { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; flex-shrink: 0; }
+  .mock-table-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+  .mock-table-title { font-size: 10px; font-weight: 700; color: #0f172a; }
+  .mock-badge { background: #eff6ff; color: #1e3a8a; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 99px; }
+  .mock-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #f8fafc; font-size: 10px; }
+  .mock-row:last-child { border-bottom: none; }
+  .mock-row.incendiary { background: rgba(254,242,242,0.5); }
+  .case-num { font-family: monospace; font-weight: 700; color: #1e3a8a; width: 88px; flex-shrink: 0; font-size: 10px; }
+  .case-addr { flex: 1; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { padding: 2px 7px; border-radius: 99px; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+  .pill-red { background: #fee2e2; color: #b91c1c; }
+  .pill-blue { background: #dbeafe; color: #1d4ed8; }
+  .pill-green { background: #dcfce7; color: #15803d; }
+  .pill-yellow { background: #fef9c3; color: #854d0e; }
+  .pill-orange { background: #ffedd5; color: #9a3412; }
+  .pill-slate { background: #f1f5f9; color: #475569; }
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-card { background: white; border-radius: 10px; border: 1px solid #e2e8f0; padding: 10px; }
+  .mini-card-title { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .compliance-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .comp-label { font-size: 9px; font-family: monospace; color: #64748b; width: 80px; flex-shrink: 0; }
+  .comp-bar { flex: 1; height: 5px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+  .comp-fill { height: 100%; border-radius: 99px; }
+  .comp-val { font-size: 9px; font-weight: 700; color: #0f172a; width: 28px; text-align: right; flex-shrink: 0; }
+  .ai-terminal { background: #0f172a; border-radius: 8px; padding: 8px; font-family: monospace; font-size: 9px; line-height: 1.7; }
+  .ai-green { color: #4ade80; }
+  .ai-yellow { color: #fbbf24; }
+  .ai-blue { color: #93c5fd; }
+  .ai-gray { color: #94a3b8; }
+
+  /* FEATURES GRID */
+  .features-section { padding: 64px 24px; background: white; }
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; max-width: 960px; margin: 0 auto; }
+  .feat-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; transition: all 0.15s; }
+  .feat-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+  .feat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 20px; }
+  .feat-title { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+  .feat-desc { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 10px; }
+  .feat-badge { font-size: 10px; font-weight: 700; color: #1e3a8a; background: #eff6ff; padding: 3px 9px; border-radius: 99px; display: inline-block; border: 1px solid #bfdbfe; }
+
+  /* WIZARD */
+  .workflow-section { padding: 64px 24px; background: #f8fafc; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; max-width: 960px; margin: 0 auto; }
+  .step-card { background: white; border-radius: 14px; border: 1px solid #e2e8f0; padding: 18px; position: relative; overflow: hidden; }
+  .step-bg-num { position: absolute; top: -8px; right: 4px; font-size: 64px; font-weight: 900; color: #f1f5f9; line-height: 1; user-select: none; }
+  .step-num { font-size: 10px; font-weight: 900; color: #ea580c; margin-bottom: 6px; }
+  .step-title { font-size: 13px; font-weight: 800; margin-bottom: 5px; }
+  .step-desc { font-size: 11px; color: #64748b; line-height: 1.5; margin-bottom: 8px; }
+  .step-nfpa { font-size: 9px; font-weight: 700; color: #1e3a8a; background: #eff6ff; padding: 2px 8px; border-radius: 99px; display: inline-block; }
+
+  /* INVESTIGATION DETAIL */
+  .detail-section { padding: 64px 24px; background: white; }
+  .detail-mock { max-width: 900px; margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12); border: 1px solid #e2e8f0; background: white; }
+  .detail-header { background: linear-gradient(135deg, #0f172a, #1e3a8a); padding: 20px 24px; }
+  .detail-case { font-family: monospace; font-size: 22px; font-weight: 900; color: white; }
+  .detail-addr { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px; }
+  .detail-pills { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .status-pill { padding: 4px 12px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .sp-progress { background: rgba(234,88,12,0.2); color: #fb923c; border: 1px solid rgba(234,88,12,0.3); }
+  .sp-incendiary { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+  .sp-investigator { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.2); }
+  .detail-tabs { display: flex; border-bottom: 1px solid #f1f5f9; padding: 0 24px; }
+  .detail-tab { padding: 12px 16px; font-size: 12px; font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; cursor: default; }
+  .detail-tab.active { color: #1e3a8a; border-bottom-color: #1e3a8a; }
+  .detail-body { padding: 20px 24px; display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+  .detail-main { display: flex; flex-direction: column; gap: 16px; }
+  .info-section { border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; }
+  .info-section-head { background: #f8fafc; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 6px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .info-field { padding: 10px 14px; border-bottom: 1px solid #f8fafc; border-right: 1px solid #f8fafc; }
+  .info-field:nth-child(2n) { border-right: none; }
+  .info-label { font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .info-value { font-size: 12px; font-weight: 600; color: #0f172a; }
+  .pattern-item { padding: 10px 14px; border-bottom: 1px solid #f8fafc; }
+  .pattern-type { font-size: 10px; font-weight: 800; color: #ea580c; margin-bottom: 3px; }
+  .pattern-loc { font-size: 10px; color: #94a3b8; margin-bottom: 4px; }
+  .pattern-desc { font-size: 11px; color: #475569; line-height: 1.5; }
+  .detail-sidebar { display: flex; flex-direction: column; gap: 12px; }
+  .sidebar-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+  .sidebar-card-head { padding: 10px 14px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
+  .checklist-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-bottom: 1px solid #f8fafc; font-size: 11px; }
+  .check-done { color: #22c55e; font-weight: 700; flex-shrink: 0; }
+  .check-pending { color: #e2e8f0; flex-shrink: 0; }
+  .check-text-done { color: #374151; }
+  .check-text-pending { color: #94a3b8; }
+  .compliance-meter { padding: 14px; }
+  .meter-val { font-size: 28px; font-weight: 900; color: #1e3a8a; }
+  .meter-label { font-size: 10px; color: #94a3b8; margin-bottom: 8px; }
+  .meter-bar { height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+  .meter-fill { height: 100%; background: linear-gradient(90deg, #1e3a8a, #3b82f6); border-radius: 99px; }
+  .ai-panel { background: #0f172a; border-radius: 0 0 12px 12px; padding: 14px; font-family: monospace; font-size: 10px; line-height: 1.8; }
+  .ai-panel-head { padding: 10px 14px; font-size: 11px; font-weight: 700; color: #1e3a8a; background: #eff6ff; border-bottom: 1px solid #bfdbfe; display: flex; align-items: center; gap: 6px; }
+
+  /* INSURANCE */
+  .insurance-section { padding: 64px 24px; background: #f8fafc; }
+  .claims-table { max-width: 900px; margin: 0 auto; background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+  .claims-header { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+  .claims-title { font-size: 14px; font-weight: 800; }
+  .claims-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .claims-kpis { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; border-bottom: 1px solid #f1f5f9; }
+  .claims-kpi { padding: 14px 20px; border-right: 1px solid #f1f5f9; }
+  .claims-kpi:last-child { border-right: none; }
+  .ck-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .ck-val { font-size: 22px; font-weight: 900; }
+  .ck-blue { color: #1e3a8a; }
+  .ck-red { color: #dc2626; }
+  .ck-green { color: #15803d; }
+  .claims-row { display: grid; grid-template-columns: 130px 1fr 140px 130px 110px; gap: 12px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f8fafc; font-size: 12px; }
+  .claims-row-head { background: #f8fafc; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+  .claim-num { font-family: monospace; font-weight: 700; color: #1e3a8a; }
+  .claim-insured { font-weight: 600; }
+  .claim-insurer { color: #64748b; font-size: 11px; }
+  .claim-loss { font-weight: 700; }
+  .loss-big { color: #dc2626; }
+  .loss-med { color: #ea580c; }
+
+  /* ANALYTICS */
+  .analytics-section { padding: 64px 24px; background: white; }
+  .analytics-mock { max-width: 900px; margin: 0 auto; }
+  .analytics-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .analytics-kpi { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; }
+  .ak-label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .ak-val { font-size: 32px; font-weight: 900; }
+  .ak-blue { color: #1e3a8a; }
+  .ak-orange { color: #ea580c; }
+  .ak-green { color: #15803d; }
+  .ak-slate { color: #475569; }
+  .analytics-charts { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .chart-card { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; }
+  .chart-title { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
+  .chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 0 4px; }
+  .chart-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .chart-stack { display: flex; flex-direction: column; width: 100%; border-radius: 6px 6px 0 0; overflow: hidden; }
+  .chart-label { font-size: 9px; color: #94a3b8; }
+  .cause-breakdown { display: flex; flex-direction: column; gap: 10px; }
+  .cause-row { }
+  .cause-top { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+  .cause-name { font-weight: 600; }
+  .cause-count { color: #94a3b8; }
+  .cause-bar-bg { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+  .cause-bar-fill { height: 100%; border-radius: 99px; }
+
+  /* DEMO ACCOUNTS */
+  .demo-section { padding: 64px 24px; background: #f8fafc; }
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; max-width: 960px; margin: 0 auto; }
+  .demo-card { background: white; border: 2px solid #e2e8f0; border-radius: 16px; padding: 18px; display: flex; align-items: center; gap: 14px; transition: all 0.15s; }
+  .demo-card:hover { border-color: #1e3a8a; box-shadow: 0 4px 16px rgba(30,58,138,0.1); }
+  .demo-avatar { width: 44px; height: 44px; border-radius: 50%; background: #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: white; flex-shrink: 0; }
+  .demo-name { font-weight: 700; font-size: 14px; }
+  .demo-email { font-size: 11px; color: #64748b; margin-top: 2px; font-family: monospace; }
+  .demo-role-badge { font-size: 10px; font-weight: 700; color: #1e3a8a; background: #eff6ff; padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 5px; }
+  .password-note { text-align: center; margin-top: 20px; padding: 14px 24px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; color: #475569; max-width: 320px; margin-left: auto; margin-right: auto; }
+  .password-note strong { color: #0f172a; font-family: monospace; font-size: 15px; }
+
+  /* CTA */
+  .cta-section { padding: 80px 24px; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); text-align: center; }
+  .cta-section h2 { font-size: 40px; font-weight: 900; color: white; margin-bottom: 16px; }
+  .cta-section p { color: rgba(255,255,255,0.7); font-size: 16px; margin-bottom: 36px; }
+  .cta-badge { display: inline-block; background: rgba(251,146,60,0.2); border: 1px solid rgba(251,146,60,0.4); color: #fb923c; font-size: 11px; font-weight: 700; padding: 6px 14px; border-radius: 99px; margin-bottom: 24px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* FOOTER */
+  footer { background: #020617; color: #475569; padding: 32px 24px; text-align: center; font-size: 12px; }
+  footer strong { color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-logo">
+    <div class="logo-icon">🔥</div>
+    <span class="logo-text">FireTrace Pro</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab active" onclick="show('landing')">Landing</button>
+    <button class="tab" onclick="show('dashboard')">Dashboard</button>
+    <button class="tab" onclick="show('investigation')">Investigation</button>
+    <button class="tab" onclick="show('insurance')">Insurance</button>
+    <button class="tab" onclick="show('analytics')">Analytics</button>
+    <button class="tab" onclick="show('accounts')">Demo Accounts</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ LANDING ═══════════════════════════ -->
+<div class="screen active" id="s-landing">
+
+  <div class="hero">
+    <div class="hero-badge">🛡️ NFPA 921 · NFPA 1033 · Built for Australia</div>
+    <h1>Every fire tells<br><span>a story.</span><br>We help you read it.</h1>
+    <p>FireTrace Pro is the first end-to-end digital fire investigation platform built on NFPA 921 — AI-assisted cause analysis, live incident feeds, digital chain of custody, and court-ready reports.</p>
+    <div class="hero-btns">
+      <button class="btn-primary" onclick="show('dashboard')">Launch Demo ›</button>
+      <button class="btn-outline" onclick="show('accounts')">View Demo Accounts</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="val">NFPA 921</div><div class="sub">Fully Compliant</div></div>
+      <div class="hero-stat"><div class="val">8-Step</div><div class="sub">Investigation Wizard</div></div>
+      <div class="hero-stat"><div class="val">5 Roles</div><div class="sub">Role-Based Access</div></div>
+      <div class="hero-stat"><div class="val">Claude AI</div><div class="sub">Cause Analysis</div></div>
+    </div>
+  </div>
+
+  <!-- BROWSER PREVIEW -->
+  <div class="preview-section">
+    <div class="section-label">
+      <div class="eyebrow">Live Platform Preview</div>
+      <h2>See it in action</h2>
+      <p>Everything from scene arrival to court submission — in one platform</p>
+    </div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <div class="browser-url">firetrace.app/dashboard</div>
+      </div>
+      <div class="app-shell">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-logo">
+            <div class="mock-logo-icon">🔥</div>
+            <div><div class="mock-logo-text">FireTrace Pro</div><div class="mock-logo-sub">NFPA 921 Compliant</div></div>
+          </div>
+          <div class="mock-nav">
+            <div class="mock-nav-item active"><span>📊</span> Dashboard</div>
+            <div class="mock-nav-item"><span>🔥</span> Investigations</div>
+            <div class="mock-nav-item"><span>📻</span> Live Incidents</div>
+            <div class="mock-nav-item"><span>🌤</span> Weather Map</div>
+            <div class="mock-nav-item"><span>📈</span> Analytics</div>
+            <div class="mock-nav-item"><span>🏢</span> Insurance</div>
+            <div class="mock-nav-item"><span>👥</span> Users</div>
+          </div>
+          <div class="mock-user">
+            <div class="mock-avatar">AR</div>
+            <div><div class="mock-user-name">Alex Rodriguez</div><div class="mock-user-role">Admin</div></div>
+          </div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-header">
+            <div><div class="mock-title">Dashboard</div><div class="mock-subtitle">Welcome back, Alex</div></div>
+            <div class="mock-btn">+ New Investigation</div>
+          </div>
+          <div class="kpi-row">
+            <div class="kpi-card kpi-blue"><div class="kpi-label"><span class="kpi-dot"></span>Open Cases</div><div class="kpi-val">4</div></div>
+            <div class="kpi-card kpi-orange"><div class="kpi-label"><span class="kpi-dot"></span>In Progress</div><div class="kpi-val">2</div></div>
+            <div class="kpi-card kpi-red"><div class="kpi-label"><span class="kpi-dot"></span>Incendiary</div><div class="kpi-val">1</div></div>
+            <div class="kpi-card kpi-green"><div class="kpi-label"><span class="kpi-dot"></span>Closed</div><div class="kpi-val">1</div></div>
+          </div>
+          <div class="mock-table">
+            <div class="mock-table-head"><span class="mock-table-title">Recent Investigations</span><span class="mock-badge">5 cases</span></div>
+            <div class="mock-row incendiary"><span class="case-num">FIA-2024-1003</span><span class="case-addr">830 Abernethy Rd, Midland WA</span><span class="pill pill-red">INCENDIARY</span><span class="pill pill-orange">IN PROGRESS</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2024-1002</span><span class="case-addr">450 Murray St, Perth WA</span><span class="pill pill-blue">ACCIDENTAL</span><span class="pill pill-yellow">PENDING REVIEW</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2024-1001</span><span class="case-addr">1247 Stirling Hwy, Crawley WA</span><span class="pill pill-blue">ACCIDENTAL</span><span class="pill pill-green">CLOSED</span></div>
+          </div>
+          <div class="bottom-row">
+            <div class="mini-card">
+              <div class="mini-card-title">NFPA Compliance Scores</div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1001</span><div class="comp-bar"><div class="comp-fill" style="width:95%;background:#22c55e"></div></div><span class="comp-val">95%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1002</span><div class="comp-bar"><div class="comp-fill" style="width:82%;background:#2563eb"></div></div><span class="comp-val">82%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1003</span><div class="comp-bar"><div class="comp-fill" style="width:65%;background:#ea580c"></div></div><span class="comp-val">65%</span></div>
+            </div>
+            <div class="mini-card">
+              <div class="mini-card-title">AI Cause Analysis — Claude</div>
+              <div class="ai-terminal">
+                <div class="ai-green">✓ V-pattern apex at 920mm AFF</div>
+                <div class="ai-green">✓ Char depth gradient confirmed</div>
+                <div class="ai-yellow">→ Classification: ACCIDENTAL</div>
+                <div class="ai-blue">→ NFPA 921 §20.3 — Cooking fire</div>
+                <div class="ai-gray">→ Confidence: High</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="features-section">
+    <div class="section-label">
+      <div class="eyebrow">Platform Features</div>
+      <h2>Built for the field. Built for the courtroom.</h2>
+      <p>Every feature maps directly to an NFPA 921 section</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat-card"><div class="feat-icon" style="background:#eff6ff">🛡️</div><div class="feat-title">8-Step NFPA 921 Wizard</div><div class="feat-desc">Guided investigation workflow enforcing NFPA 921 at every field. Zod-validated — cannot advance until required data is complete.</div><span class="feat-badge">NFPA 921 §12–20</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#fff7ed">✨</div><div class="feat-title">AI Cause Analysis</div><div class="feat-desc">Claude AI streams a NFPA-coded cause classification in real time — analysing fire patterns and evidence with section-by-section reasoning.</div><span class="feat-badge">Powered by Claude AI</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#f0fdf4">📄</div><div class="feat-title">Court-Ready PDF Reports</div><div class="feat-desc">Live report builder with section toggles and one-click PDF export. Branded header, evidence tables, fire patterns, and investigator signature.</div><span class="feat-badge">PDF Export</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#faf5ff">📦</div><div class="feat-title">Digital Chain of Custody</div><div class="feat-desc">Full digital CoC with timestamped entries, canvas digital signatures, and lab submission tracking per NFPA 921 §15.3.</div><span class="feat-badge">NFPA 921 §15</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#fef2f2">🗺️</div><div class="feat-title">Fire Pattern Library</div><div class="feat-desc">Document V-patterns, char depth, pour patterns, spalling, clean burn, and 9 other NFPA-classified patterns with photos.</div><span class="feat-badge">NFPA 921 §6</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#fff7ed">📻</div><div class="feat-title">Live DFES Incident Feed</div><div class="feat-desc">Real-time Western Australia emergency incident feed from DFES. Filter by type and region. One-click to start a new investigation.</div><span class="feat-badge">DFES Live Data</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#f0f9ff">🌤️</div><div class="feat-title">BOM Weather Integration</div><div class="feat-desc">Auto-fills scene weather from the nearest Bureau of Meteorology station. Wind speed, direction, temperature, humidity documented automatically.</div><span class="feat-badge">BOM Australia</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#f8fafc">🏢</div><div class="feat-title">Insurance Portal</div><div class="feat-desc">Dedicated adjuster workflow — policy linkage, estimated loss tracking, incendiary claim flags, and status management linked to investigations.</div><span class="feat-badge">Claims workflow</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#f0fdf4">✅</div><div class="feat-title">NFPA 921 Compliance Meter</div><div class="feat-desc">Live compliance score tracking 22 requirements across 5 NFPA 921 categories. Updates in real time as investigators complete each item.</div><span class="feat-badge">22 checkpoints</span></div>
+    </div>
+  </div>
+
+  <!-- WORKFLOW STEPS -->
+  <div class="workflow-section">
+    <div class="section-label">
+      <div class="eyebrow">Investigation Workflow</div>
+      <h2>From scene arrival to signed report in 8 steps</h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card"><div class="step-bg-num">01</div><div class="step-num">Step 01</div><div class="step-title">Incident Basics</div><div class="step-desc">Date, address, occupancy type, dispatch and arrival times. Auto-geocoded via Landgate WA.</div><span class="step-nfpa">NFPA 921 §12</span></div>
+      <div class="step-card"><div class="step-bg-num">02</div><div class="step-num">Step 02</div><div class="step-title">Scene Condition</div><div class="step-desc">Structure type, construction, utilities. Weather auto-filled from nearest BOM station.</div><span class="step-nfpa">NFPA 921 §13</span></div>
+      <div class="step-card"><div class="step-bg-num">03</div><div class="step-num">Step 03</div><div class="step-title">Fire Patterns</div><div class="step-desc">Document V-patterns, char depth, pour patterns with photos and NFPA section references.</div><span class="step-nfpa">NFPA 921 §6</span></div>
+      <div class="step-card"><div class="step-bg-num">04</div><div class="step-num">Step 04</div><div class="step-title">Evidence</div><div class="step-desc">Collect, photograph and log each evidence item with chain of custody from the scene.</div><span class="step-nfpa">NFPA 921 §15</span></div>
+      <div class="step-card"><div class="step-bg-num">05</div><div class="step-num">Step 05</div><div class="step-title">Origin Determination</div><div class="step-desc">Identify area and point of origin using fire pattern methodology and systematic analysis.</div><span class="step-nfpa">NFPA 921 §14</span></div>
+      <div class="step-card"><div class="step-bg-num">06</div><div class="step-num">Step 06</div><div class="step-title">Cause Classification</div><div class="step-desc">Identify first material ignited, ignition source, ignition factor, and fuel package.</div><span class="step-nfpa">NFPA 921 §20</span></div>
+      <div class="step-card"><div class="step-bg-num">07</div><div class="step-num">Step 07</div><div class="step-title">Final Determination</div><div class="step-desc">AI-assisted NFPA cause classification — Natural, Accidental, Incendiary, or Undetermined.</div><span class="step-nfpa">NFPA 921 §20</span></div>
+      <div class="step-card"><div class="step-bg-num">08</div><div class="step-num">Step 08</div><div class="step-title">Review & Submit</div><div class="step-desc">Validation check flags missing fields. Submit creates the case and generates the compliance checklist.</div><span class="step-nfpa">NFPA 1033</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════ DASHBOARD ═══════════════════════════ -->
+<div class="screen" id="s-dashboard">
+  <div class="preview-section" style="background:#f8fafc;min-height:calc(100vh - 56px)">
+    <div class="section-label">
+      <div class="eyebrow">Dashboard</div>
+      <h2>Command Centre</h2>
+      <p>KPI overview, active cases map, compliance scores, and AI analysis — all at a glance</p>
+    </div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <div class="browser-url">firetrace.app/dashboard</div>
+      </div>
+      <div class="app-shell" style="height:520px">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-logo"><div class="mock-logo-icon">🔥</div><div><div class="mock-logo-text">FireTrace Pro</div><div class="mock-logo-sub">NFPA 921 Compliant</div></div></div>
+          <div class="mock-nav">
+            <div class="mock-nav-item active"><span>📊</span> Dashboard</div>
+            <div class="mock-nav-item"><span>🔥</span> Investigations</div>
+            <div class="mock-nav-item"><span>📻</span> Live Incidents</div>
+            <div class="mock-nav-item"><span>🌤</span> Weather Map</div>
+            <div class="mock-nav-item"><span>📈</span> Analytics</div>
+            <div class="mock-nav-item"><span>🏢</span> Insurance</div>
+          </div>
+          <div class="mock-user"><div class="mock-avatar">AR</div><div><div class="mock-user-name">Alex Rodriguez</div><div class="mock-user-role">Admin</div></div></div>
+        </div>
+        <div class="mock-main" style="overflow-y:auto">
+          <div class="mock-header"><div><div class="mock-title">Dashboard</div><div class="mock-subtitle">Welcome back, Alex</div></div><div class="mock-btn">+ New Investigation</div></div>
+          <div class="kpi-row">
+            <div class="kpi-card kpi-blue"><div class="kpi-label"><span class="kpi-dot"></span>Open Cases</div><div class="kpi-val">4</div></div>
+            <div class="kpi-card kpi-orange"><div class="kpi-label"><span class="kpi-dot"></span>In Progress</div><div class="kpi-val">2</div></div>
+            <div class="kpi-card kpi-red"><div class="kpi-label"><span class="kpi-dot"></span>Incendiary Flag</div><div class="kpi-val">1</div></div>
+            <div class="kpi-card kpi-green"><div class="kpi-label"><span class="kpi-dot"></span>Closed</div><div class="kpi-val">1</div></div>
+          </div>
+          <div class="mock-table">
+            <div class="mock-table-head"><span class="mock-table-title">Active Investigations — Western Australia</span><span class="mock-badge">5 cases</span></div>
+            <div class="mock-row incendiary"><span class="case-num">FIA-2024-1003</span><span class="case-addr">830 Abernethy Rd, Midland WA 6056</span><span class="pill pill-red">INCENDIARY</span><span class="pill pill-orange">IN PROGRESS</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2025-0002</span><span class="case-addr">15 Hay St, Subiaco WA 6008</span><span class="pill pill-slate">UNDETERMINED</span><span class="pill pill-orange">IN PROGRESS</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2024-1002</span><span class="case-addr">450 Murray St, Perth WA 6000</span><span class="pill pill-blue">ACCIDENTAL</span><span class="pill pill-yellow">PENDING REVIEW</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2025-0001</span><span class="case-addr">2891 Albany Hwy, Gosnells WA 6110</span><span class="pill pill-slate">UNCLASSIFIED</span><span class="pill pill-blue">OPEN</span></div>
+            <div class="mock-row"><span class="case-num">FIA-2024-1001</span><span class="case-addr">1247 Stirling Hwy, Crawley WA 6009</span><span class="pill pill-blue">ACCIDENTAL</span><span class="pill pill-green">CLOSED</span></div>
+          </div>
+          <div class="bottom-row">
+            <div class="mini-card">
+              <div class="mini-card-title">NFPA 921 Compliance Scores</div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1001</span><div class="comp-bar"><div class="comp-fill" style="width:95%;background:#22c55e"></div></div><span class="comp-val">95%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1002</span><div class="comp-bar"><div class="comp-fill" style="width:82%;background:#2563eb"></div></div><span class="comp-val">82%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2024-1003</span><div class="comp-bar"><div class="comp-fill" style="width:65%;background:#ea580c"></div></div><span class="comp-val">65%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2025-0001</span><div class="comp-bar"><div class="comp-fill" style="width:18%;background:#ef4444"></div></div><span class="comp-val">18%</span></div>
+              <div class="compliance-row"><span class="comp-label">FIA-2025-0002</span><div class="comp-bar"><div class="comp-fill" style="width:55%;background:#f59e0b"></div></div><span class="comp-val">55%</span></div>
+            </div>
+            <div class="mini-card">
+              <div class="mini-card-title">🤖 AI Cause Analysis — Claude</div>
+              <div class="ai-terminal">
+                <div class="ai-gray">Analysing FIA-2024-1001...</div>
+                <div class="ai-green">✓ V-pattern apex at 920mm AFF</div>
+                <div class="ai-green">✓ Char depth gradient: 18→6mm</div>
+                <div class="ai-green">✓ Clean burn at ceiling confirmed</div>
+                <div class="ai-yellow">→ Classification: ACCIDENTAL</div>
+                <div class="ai-blue">→ NFPA 921 §20.3</div>
+                <div class="ai-blue">→ Unattended cooking fire</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ INVESTIGATION DETAIL ═══════════════════════════ -->
+<div class="screen" id="s-investigation">
+  <div class="detail-section" style="min-height:calc(100vh - 56px)">
+    <div class="section-label">
+      <div class="eyebrow">Investigation Detail</div>
+      <h2>FIA-2024-1003 — Incendiary Case</h2>
+      <p>Tabbed layout: Overview · Evidence · Fire Patterns · Report · Timeline · AI Analysis</p>
+    </div>
+    <div class="detail-mock">
+      <div class="detail-header">
+        <div class="detail-case">FIA-2024-1003</div>
+        <div class="detail-addr">📍 830 Abernethy Road, Midland WA 6056</div>
+        <div class="detail-pills">
+          <span class="status-pill sp-progress">IN PROGRESS</span>
+          <span class="status-pill sp-incendiary">🔴 INCENDIARY</span>
+          <span class="status-pill sp-investigator">👤 Alex Rodriguez</span>
+          <span class="status-pill sp-investigator">📅 5 Nov 2024</span>
+        </div>
+      </div>
+      <div class="detail-tabs">
+        <div class="detail-tab active">Overview</div>
+        <div class="detail-tab">Evidence (2)</div>
+        <div class="detail-tab">Fire Patterns (3)</div>
+        <div class="detail-tab">Report</div>
+        <div class="detail-tab">Timeline</div>
+        <div class="detail-tab">AI Analysis</div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-main">
+          <div class="info-section">
+            <div class="info-section-head">🏭 Structure & Scene</div>
+            <div class="info-grid">
+              <div class="info-field"><div class="info-label">Structure Type</div><div class="info-value">Industrial</div></div>
+              <div class="info-field"><div class="info-label">Occupancy</div><div class="info-value">Factory / Industrial</div></div>
+              <div class="info-field"><div class="info-label">Construction</div><div class="info-value">Type I (Non-combustible)</div></div>
+              <div class="info-field"><div class="info-label">Building Age</div><div class="info-value">28 years</div></div>
+              <div class="info-field"><div class="info-label">Temperature</div><div class="info-value">34°C</div></div>
+              <div class="info-field"><div class="info-label">Wind</div><div class="info-value">18 km/h E</div></div>
+              <div class="info-field"><div class="info-label">Gas Utilities</div><div class="info-value">Unknown</div></div>
+              <div class="info-field"><div class="info-label">Electric</div><div class="info-value">Unknown</div></div>
+            </div>
+          </div>
+          <div class="info-section">
+            <div class="info-section-head">🔥 Fire Patterns Documented</div>
+            <div class="pattern-item"><div class="pattern-type">POUR PATTERN — NFPA 921 §6.3.7</div><div class="pattern-loc">📍 Loading bay floor, east side — 3 separate locations</div><div class="pattern-desc">Irregular char patterns on concrete floor consistent with liquid accelerant distribution. GC-MS confirmed gasoline. K-9 detection positive.</div></div>
+            <div class="pattern-item"><div class="pattern-type">MULTIPLE ORIGIN INDICATORS — NFPA 921 §19.2</div><div class="pattern-loc">📍 East loading dock AND west storage area</div><div class="pattern-desc">Two distinct areas of heaviest fire damage on opposite ends of structure — no plausible single-origin fire spread pathway identified between them.</div></div>
+            <div class="pattern-item"><div class="pattern-type">V-PATTERN — NFPA 921 §6.3.1</div><div class="pattern-loc">📍 East wall, loading bay door 3</div><div class="pattern-desc">V-pattern with unusually low apex at 200mm AFF, consistent with accelerant-fuelled fire originating at floor level rather than typical ignition height.</div></div>
+          </div>
+          <div class="info-section">
+            <div class="info-section-head">⚡ Cause Classification — NFPA 921 §20</div>
+            <div class="info-grid">
+              <div class="info-field"><div class="info-label">NFPA Classification</div><div class="info-value" style="color:#dc2626;font-weight:800">INCENDIARY</div></div>
+              <div class="info-field"><div class="info-label">First Material Ignited</div><div class="info-value">Gasoline/flammable liquid</div></div>
+              <div class="info-field"><div class="info-label">Ignition Source</div><div class="info-value">Open flame — timed device suspected</div></div>
+              <div class="info-field"><div class="info-label">Ignition Factor</div><div class="info-value">Intentional ignition</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-sidebar">
+          <div class="sidebar-card">
+            <div class="compliance-meter">
+              <div class="meter-val">65%</div>
+              <div class="meter-label">NFPA 921 Compliance Score</div>
+              <div class="meter-bar"><div class="meter-fill" style="width:65%;background:linear-gradient(90deg,#ea580c,#f97316)"></div></div>
+            </div>
+          </div>
+          <div class="sidebar-card">
+            <div class="sidebar-card-head">NFPA 921 Checklist</div>
+            <div class="checklist-item"><span class="check-done">✓</span><span class="check-text-done">Scene safety completed</span></div>
+            <div class="checklist-item"><span class="check-done">✓</span><span class="check-text-done">Legal authority established</span></div>
+            <div class="checklist-item"><span class="check-done">✓</span><span class="check-text-done">Photo documentation</span></div>
+            <div class="checklist-item"><span class="check-done">✓</span><span class="check-text-done">Fire pattern analysis</span></div>
+            <div class="checklist-item"><span class="check-done">✓</span><span class="check-text-done">Area of origin identified</span></div>
+            <div class="checklist-item"><span class="check-pending">○</span><span class="check-text-pending">Alternative hypotheses</span></div>
+            <div class="checklist-item"><span class="check-pending">○</span><span class="check-text-pending">Final cause classification</span></div>
+            <div class="checklist-item"><span class="check-pending">○</span><span class="check-text-pending">Report signed — NFPA 1033</span></div>
+          </div>
+          <div class="sidebar-card">
+            <div class="ai-panel-head">✨ Claude AI Analysis</div>
+            <div class="ai-panel">
+              <div class="ai-green">✓ Multiple origin points confirmed</div>
+              <div class="ai-green">✓ Pour patterns — accelerant use</div>
+              <div class="ai-green">✓ K-9 detection: 3 locations</div>
+              <div class="ai-yellow">→ Classification: INCENDIARY</div>
+              <div class="ai-blue">→ NFPA 921 §19 — Incendiary</div>
+              <div class="ai-gray">→ Refer to WA Police Arson Squad</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ INSURANCE ═══════════════════════════ -->
+<div class="screen" id="s-insurance">
+  <div class="insurance-section" style="min-height:calc(100vh - 56px)">
+    <div class="section-label">
+      <div class="eyebrow">Insurance Portal</div>
+      <h2>Claims Management</h2>
+      <p>Policy linkage, loss tracking, incendiary flags, and claim status — linked directly to investigation records</p>
+    </div>
+    <div class="claims-table">
+      <div class="claims-header">
+        <div><div class="claims-title">Insurance Claims — Western Australia</div><div class="claims-sub">All claims linked to NFPA 921 investigation records</div></div>
+        <div class="mock-btn">+ New Claim</div>
+      </div>
+      <div class="claims-kpis">
+        <div class="claims-kpi"><div class="ck-label">Total Claims</div><div class="ck-val ck-blue">3</div></div>
+        <div class="claims-kpi"><div class="ck-label">Total Exposure</div><div class="ck-val ck-red">A$8.53M</div></div>
+        <div class="claims-kpi"><div class="ck-label">Incendiary Flags</div><div class="ck-val ck-red">1</div></div>
+      </div>
+      <div class="claims-row claims-row-head">
+        <div>Claim #</div><div>Insured / Insurer</div><div>Investigation</div><div>Est. Loss</div><div>Status</div>
+      </div>
+      <div class="claims-row" style="background:#fef2f2">
+        <div><div class="claim-num">CLM-2024-51203</div></div>
+        <div><div class="claim-insured">WA Industrial Holdings Pty Ltd</div><div class="claim-insurer">Allianz Australia · POL-IND-44902</div></div>
+        <div><span class="pill pill-red" style="font-size:10px">FIA-2024-1003 🔴</span></div>
+        <div class="claim-loss loss-big">A$5,200,000</div>
+        <div><span class="pill pill-red">SUSPENDED</span></div>
+      </div>
+      <div class="claims-row">
+        <div><div class="claim-num">CLM-2024-50892</div></div>
+        <div><div class="claim-insured">TechCore Solutions Pty Ltd</div><div class="claim-insurer">QBE Insurance Group · POL-COM-88721</div></div>
+        <div><span class="pill pill-yellow" style="font-size:10px">FIA-2024-1002</span></div>
+        <div class="claim-loss loss-med">A$2,850,000</div>
+        <div><span class="pill pill-yellow">UNDER REVIEW</span></div>
+      </div>
+      <div class="claims-row">
+        <div><div class="claim-num">CLM-2025-10047</div></div>
+        <div><div class="claim-insured">Strata Plan 44821 — 15 Hay St</div><div class="claim-insurer">NRMA Insurance · POL-RES-22819</div></div>
+        <div><span class="pill pill-slate" style="font-size:10px">FIA-2025-0002</span></div>
+        <div class="claim-loss">A$480,000</div>
+        <div><span class="pill pill-blue">OPEN</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ ANALYTICS ═══════════════════════════ -->
+<div class="screen" id="s-analytics">
+  <div class="analytics-section" style="min-height:calc(100vh - 56px)">
+    <div class="section-label">
+      <div class="eyebrow">Analytics</div>
+      <h2>Fire Investigation Statistics</h2>
+      <p>12-month cause trends, NFPA compliance scores, and cause breakdown</p>
+    </div>
+    <div class="analytics-mock">
+      <div class="analytics-kpis">
+        <div class="analytics-kpi"><div class="ak-label">Total Cases</div><div class="ak-val ak-blue">5</div></div>
+        <div class="analytics-kpi"><div class="ak-label">Active</div><div class="ak-val ak-orange">4</div></div>
+        <div class="analytics-kpi"><div class="ak-label">Avg Compliance</div><div class="ak-val ak-green">63%</div></div>
+        <div class="analytics-kpi"><div class="ak-label">Closed</div><div class="ak-val ak-slate">1</div></div>
+      </div>
+      <div class="analytics-charts">
+        <div class="chart-card">
+          <div class="chart-title">🔥 Fire Cause Trends — Last 6 Months</div>
+          <div class="chart-bars">
+            <div class="chart-col"><div class="chart-stack" style="height:30px"><div style="flex:1;background:#2563eb"></div></div><div class="chart-label">Nov</div></div>
+            <div class="chart-col"><div class="chart-stack" style="height:50px"><div style="flex:2;background:#ea580c"></div><div style="flex:1;background:#2563eb"></div></div><div class="chart-label">Dec</div></div>
+            <div class="chart-col"><div class="chart-stack" style="height:40px"><div style="flex:1;background:#f59e0b"></div></div><div class="chart-label">Jan</div></div>
+            <div class="chart-col"><div class="chart-stack" style="height:60px"><div style="flex:2;background:#94a3b8"></div><div style="flex:1;background:#2563eb"></div></div><div class="chart-label">Feb</div></div>
+            <div class="chart-col"><div class="chart-stack" style="height:20px"><div style="flex:1;background:#22c55e"></div></div><div class="chart-label">Mar</div></div>
+            <div class="chart-col"><div class="chart-stack" style="height:45px"><div style="flex:2;background:#2563eb"></div><div style="flex:1;background:#ea580c"></div></div><div class="chart-label">Apr</div></div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="width:10px;height:10px;border-radius:2px;background:#2563eb;display:inline-block"></span>Accidental</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="width:10px;height:10px;border-radius:2px;background:#ea580c;display:inline-block"></span>Incendiary</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="width:10px;height:10px;border-radius:2px;background:#94a3b8;display:inline-block"></span>Undetermined</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span>Natural</div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">📊 Cause Breakdown</div>
+          <div class="cause-breakdown">
+            <div class="cause-row"><div class="cause-top"><span class="cause-name">Accidental</span><span class="cause-count">2 (40%)</span></div><div class="cause-bar-bg"><div class="cause-bar-fill" style="width:40%;background:#2563eb"></div></div></div>
+            <div class="cause-row"><div class="cause-top"><span class="cause-name">Incendiary</span><span class="cause-count">1 (20%)</span></div><div class="cause-bar-bg"><div class="cause-bar-fill" style="width:20%;background:#ef4444"></div></div></div>
+            <div class="cause-row"><div class="cause-top"><span class="cause-name">Undetermined</span><span class="cause-count">1 (20%)</span></div><div class="cause-bar-bg"><div class="cause-bar-fill" style="width:20%;background:#f59e0b"></div></div></div>
+            <div class="cause-row"><div class="cause-top"><span class="cause-name">Unclassified</span><span class="cause-count">1 (20%)</span></div><div class="cause-bar-bg"><div class="cause-bar-fill" style="width:20%;background:#94a3b8"></div></div></div>
+          </div>
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9">
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;font-weight:700">NFPA Compliance</div>
+            <div style="font-size:28px;font-weight:900;color:#1e3a8a">63%</div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Average across 5 cases</div>
+            <div style="height:8px;background:#f1f5f9;border-radius:99px;overflow:hidden"><div style="width:63%;height:100%;background:linear-gradient(90deg,#1e3a8a,#3b82f6);border-radius:99px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ DEMO ACCOUNTS ═══════════════════════════ -->
+<div class="screen" id="s-accounts">
+  <div class="demo-section" style="min-height:calc(100vh - 56px)">
+    <div class="section-label">
+      <div class="eyebrow">Try It Now</div>
+      <h2>Demo Accounts — loaded with WA investigation data</h2>
+      <p>5 real investigations across Perth metro. Evidence, fire patterns, insurance claims, and chain of custody ready to explore.</p>
+    </div>
+    <div class="demo-grid">
+      <div class="demo-card"><div class="demo-avatar">AR</div><div><div class="demo-name">Alex Rodriguez</div><div class="demo-email">admin@firetrace.app</div><div class="demo-role-badge">Admin — Full Access</div></div></div>
+      <div class="demo-card"><div class="demo-avatar" style="background:#1e3a8a">SC</div><div><div class="demo-name">Sarah Chen</div><div class="demo-email">investigator@firetrace.app</div><div class="demo-role-badge">Investigator — IAAI-CFI</div></div></div>
+      <div class="demo-card"><div class="demo-avatar" style="background:#7c3aed">DO</div><div><div class="demo-name">David Okafor</div><div class="demo-email">supervisor@firetrace.app</div><div class="demo-role-badge">Supervisor — Review & Approve</div></div></div>
+      <div class="demo-card"><div class="demo-avatar" style="background:#0369a1">MW</div><div><div class="demo-name">Marcus Williams</div><div class="demo-email">firefighter@firetrace.app</div><div class="demo-role-badge">Firefighter — Scene Docs</div></div></div>
+      <div class="demo-card"><div class="demo-avatar" style="background:#0f766e">JP</div><div><div class="demo-name">Jennifer Park</div><div class="demo-email">adjuster@firetrace.app</div><div class="demo-role-badge">Insurance Adjuster — IAG WA</div></div></div>
+    </div>
+    <div class="password-note">All accounts · Password: <strong>demo1234</strong></div>
+
+    <div style="margin-top:40px;max-width:700px;margin-left:auto;margin-right:auto">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:16px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:16px">What's loaded in the demo database</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>5 WA investigations</strong> — Crawley, Perth, Midland, Gosnells, Subiaco</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>3 insurance claims</strong> — QBE, Allianz, NRMA (A$8.53M exposure)</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>3 evidence items</strong> with chain of custody + DFES lab submission</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>3 fire patterns</strong> — V-pattern, clean burn, char depth with NFPA refs</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>NFPA 921 checklists</strong> — all 22 items tracked per investigation</div></div>
+          <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#22c55e;font-size:16px;line-height:1">✓</span><div><strong>5 user accounts</strong> — each with different role-based access</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="cta-badge">🚀 Ready to Demo</div>
+  <h2>Start your first NFPA 921<br>investigation today.</h2>
+  <p>Fix the .env.local then run:<br><code style="background:rgba(255,255,255,0.1);padding:8px 16px;border-radius:8px;font-size:14px">npm run db:push && npm run db:seed && npm run dev -- -p 3001</code></p>
+</div>
+
+<footer>
+  <strong>FireTrace Pro</strong> · NFPA 921 · NFPA 1033 · AFAC · Built for Western Australia · Powered by Claude AI · © 2025
+</footer>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('s-' + id).classList.add('active');
+    const tabs = ['landing','dashboard','investigation','insurance','analytics','accounts'];
+    document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
+    window.scrollTo(0,0);
+  }
+</script>
+</body>
+</html>
