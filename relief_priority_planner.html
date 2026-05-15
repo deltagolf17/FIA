@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relief Priority Planner</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue-dk:#0C447C;--blue-md:#185FA5;--blue-lt:#E6F1FB;--blue-bd:#85B7EB;
+  --teal-dk:#085041;--teal-md:#0F6E56;--teal-lt:#E1F5EE;--teal-bd:#5DCAA5;
+  --amber-dk:#633806;--amber-md:#854F0B;--amber-lt:#FAEEDA;--amber-bd:#FAC775;
+  --red-dk:#791F1F;--red-md:#A32D2D;--red-lt:#FCEBEB;--red-bd:#F09595;
+  --purple-dk:#3C3489;--purple-md:#534AB7;--purple-lt:#EEEDFE;--purple-bd:#AFA9EC;
+  --coral-dk:#712B13;--coral-md:#993C1D;--coral-lt:#FAECE7;--coral-bd:#F0997B;
+  --green-lt:#EAF3DE;--green-md:#3B6D11;--green-bd:#97C459;
+  --gray-50:#F1EFE8;--gray-100:#E8E6DF;--gray-200:#D3D1C7;--gray-600:#5F5E5A;
+  --text:#1a1a18;--muted:#5F5E5A;--faint:#888780;
+  --border:#D3D1C7;--border-lt:#E8E6DF;
+  --bg:#ffffff;--bg-page:#F5F3EE;
+  --r:6px;--rl:10px;
+}
+body { font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.5; padding:20px 16px; }
+.page { max-width:940px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+
+.doc-header { background:var(--blue-dk); border-radius:var(--rl); padding:18px 24px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.doc-header h1 { font-size:16px; font-weight:600; color:#fff; margin-bottom:3px; }
+.doc-header p { font-size:11px; color:rgba(255,255,255,.6); }
+
+.card { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--rl); overflow:hidden; }
+.card-hdr { padding:10px 18px; border-bottom:0.5px solid var(--border); display:flex; align-items:center; gap:10px; }
+.card-hdr h2 { font-size:13px; font-weight:600; flex:1; }
+.card-hdr .note { font-size:10px; color:var(--faint); }
+.card-body { padding:16px 18px; }
+
+/* DATE PICKER */
+.date-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.date-row input[type=date] { border:0.5px solid var(--border); border-radius:var(--r); padding:8px 12px; font-size:14px; font-weight:500; color:var(--text); background:var(--bg); font-family:inherit; }
+.date-row input[type=date]:focus { outline:none; border-color:var(--blue-md); }
+.today-btn { font-size:12px; background:none; border:0.5px solid var(--border); border-radius:var(--r); padding:6px 14px; cursor:pointer; color:var(--muted); font-family:inherit; }
+.today-btn:hover { background:var(--gray-50); }
+.date-info { font-size:13px; font-weight:500; color:var(--blue-md); flex:1; }
+
+/* PLATOON COLOURS — matches SAMS */
+.pc-a { background:#E3F2FD; border-color:#90CAF9; color:#1565C0; }
+.pc-b { background:#F5F5F5; border-color:#BDBDBD; color:#212121; }
+.pc-c { background:#E8F5E9; border-color:#81C784; color:#2E7D32; }
+.pc-d { background:#FFEBEE; border-color:#EF9A9A; color:#C62828; }
+.pc-off { background:var(--gray-50); border-color:var(--gray-200); color:var(--muted); }
+.tc-a { color:#1565C0; font-weight:600; }
+.tc-b { color:#212121; font-weight:600; }
+.tc-c { color:#2E7D32; font-weight:600; }
+.tc-d { color:#C62828; font-weight:600; }
+
+/* CURRENT SHIFTS PANEL */
+.shifts-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.shift-card { border-radius:var(--rl); padding:12px 10px; text-align:center; border:0.5px solid; }
+.shift-card .plat { font-size:22px; font-weight:500; line-height:1; }
+.shift-card .type { font-size:11px; font-weight:500; margin-top:3px; }
+.shift-card .desc { font-size:10px; margin-top:2px; opacity:.8; }
+
+/* SAMS-STYLE CALENDAR — matches screenshot exactly */
+.cal-toggle-btn { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--muted); background:none; border:0.5px solid var(--border); border-radius:var(--r); padding:4px 10px; cursor:pointer; font-family:inherit; margin-bottom:8px; }
+.cal-toggle-btn:hover { background:var(--gray-50); }
+.cal-widget { background:#fff; border:1px solid #888; overflow:hidden; font-family:'Segoe UI',sans-serif; width:100%; }
+
+/* Nav bar — dark navy, selectors are dark pills with white text */
+.cal-nav { background:#1a3a5c; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.cal-nav-lnk { color:#fff; background:none; border:none; cursor:pointer; font-size:12px; font-weight:700; padding:3px 6px; font-family:inherit; white-space:nowrap; }
+.cal-nav-lnk:hover { text-decoration:underline; }
+.cal-nav-center { display:flex; align-items:center; gap:4px; }
+/* Selectors — dark background matching nav, white text with ↕ arrows visible */
+.cal-sel { background:#2c5282; color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:3px; padding:3px 5px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:auto; -webkit-appearance:auto; }
+.cal-sel option { background:#fff; color:#1a1a18; }
+
+/* Day header row — dark navy matching nav, white text */
+.cal-days-hdr { display:grid; grid-template-columns:repeat(7,1fr); background:#1a3a5c; }
+.cal-day-hdr { text-align:center; font-size:11px; font-weight:700; color:#fff; padding:4px 1px; border-right:1px solid rgba(255,255,255,.25); }
+.cal-day-hdr:last-child { border-right:none; }
+
+/* Grid cells — compact, clearly visible content */
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-left:1px solid #ccc; border-top:1px solid #ccc; }
+.cal-cell { border-right:1px solid #ccc; border-bottom:1px solid #ccc; min-height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap; gap:0; transition:background .15s; }
+.cal-cell:hover { background:#ddeeff; }
+.cal-cell.cal-empty { background:#ebebeb; cursor:default; pointer-events:none; }
+.cal-cell.cal-today { outline:2px dashed #666; outline-offset:-3px; }
+.cal-cell.cal-selected { background:var(--blue-lt); }
+.cal-cell.cal-selected:hover { background:#D0E8FA; }
+.cal-cell:focus-visible { outline:2px solid var(--blue-md); outline-offset:-2px; z-index:1; position:relative; }
+
+/* Cell text — platoon letters bold and coloured, date number dark */
+.cal-plat-day  { font-size:11px; font-weight:700; }
+.cal-dn        { font-size:12px; font-weight:500; color:#111; margin:0 2px; }
+.cal-plat-night{ font-size:11px; font-weight:700; }
+
+/* Footer */
+.cal-footer { background:#ebebeb; border-top:1px solid #bbb; padding:5px 8px; display:flex; align-items:center; justify-content:space-between; }
+.cal-footer-lbl { font-size:11px; color:#555; }
+.cal-close-btn { font-size:11px; background:#fff; border:1px solid #aaa; padding:3px 12px; cursor:pointer; font-family:inherit; border-radius:2px; }
+.cal-close-btn:hover { background:#ddeeff; }
+
+/* DATE ROW WITH COMPACT DISPLAY */
+.date-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.date-controls input[type=date] { border:0.5px solid var(--border); border-radius:var(--r); padding:7px 10px; font-size:13px; font-weight:500; color:var(--text); background:var(--bg); font-family:inherit; }
+.date-controls input[type=date]:focus { outline:none; border-color:var(--blue-md); }
+.run-btn { background:var(--blue-md); color:#fff; border:none; border-radius:var(--r); padding:7px 16px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.run-btn:hover { background:var(--blue-dk); }
+.compact-platoons { display:flex; align-items:center; gap:6px; padding:5px 10px; background:var(--gray-50); border:0.5px solid var(--border); border-radius:var(--r); }
+.cp-label { font-size:10px; color:var(--muted); }
+.cp-letter { font-size:15px; font-weight:700; }
+.cp-sep { font-size:11px; color:var(--faint); }
+
+/* TWO-COLUMN LAYOUT */
+.date-main-layout { display:flex; gap:16px; align-items:flex-start; }
+.cal-col { flex:0 0 340px; }
+.shifts-col { flex:1; min-width:0; }
+.shifts-col-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px; }
+.small-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px; display:block; }
+
+/* SHIFT DETAIL PLACEHOLDER */
+.shift-detail { margin-top:14px; border:0.5px solid var(--border); border-radius:var(--rl); overflow:hidden; }
+.shift-detail-hdr { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; background:var(--gray-50); border-bottom:0.5px solid var(--border); }
+.shift-detail-hdr span { font-size:12px; font-weight:600; color:var(--text); }
+.shift-detail-hdr small { font-size:10px; color:var(--faint); }
+.shift-detail-body { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; }
+.sd-section { padding:12px 14px; border-right:0.5px solid var(--border-lt); }
+.sd-section:last-child { border-right:none; }
+.sd-section-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px; }
+.sd-empty { font-size:11px; color:var(--faint); font-style:italic; }
+
+/* PRIORITY HEADLINE */
+.priority-headline { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; }
+.ph-card { border-radius:var(--rl); padding:12px 14px; border:0.5px solid; }
+.ph-card .ph-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.ph-card .ph-main { font-size:14px; font-weight:500; line-height:1.2; }
+.ph-card .ph-sub { font-size:11px; margin-top:4px; line-height:1.4; }
+
+/* PRIORITY LIST */
+.pri-list { display:flex; flex-direction:column; gap:0; }
+.pri-row { display:grid; grid-template-columns:28px 70px 90px 80px 1fr 140px; align-items:center; gap:10px; padding:9px 12px; border-bottom:0.5px solid var(--border-lt); transition:background .1s; }
+.pri-row:last-child { border-bottom:none; }
+.pri-row:hover { background:var(--gray-50); }
+.pri-row.urgent { background:#FFF5F5; }
+.pri-row.urgent:hover { background:#FFEAEA; }
+.pri-row.optimal { background:#F0FAF5; }
+.pri-row.optimal:hover { background:#E5F7EE; }
+.pri-num { font-size:10px; font-weight:600; color:var(--faint); text-align:center; }
+.pri-days { font-size:13px; font-weight:500; }
+.pri-d1date { font-size:11px; color:var(--muted); }
+.tier-badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+.pri-action { font-size:12px; }
+.pri-scenario { font-size:11px; color:var(--muted); }
+
+.list-hdr { display:grid; grid-template-columns:28px 70px 90px 80px 1fr 140px; gap:10px; padding:6px 12px; background:var(--gray-50); border-bottom:0.5px solid var(--border); }
+.list-hdr span { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+
+/* LEGEND */
+.legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+.leg-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+.callout { border-radius:var(--r); padding:9px 12px; font-size:12px; line-height:1.5; }
+.callout.blue { background:var(--blue-lt); border:0.5px solid var(--blue-bd); color:var(--blue-dk); }
+.callout.amber { background:var(--amber-lt); border:0.5px solid var(--amber-bd); color:var(--amber-dk); }
+.callout.red { background:var(--red-lt); border:0.5px solid var(--red-bd); color:var(--red-dk); }
+
+.plat-badge { display:inline-block; width:22px; height:22px; border-radius:50%; text-align:center; line-height:22px; font-size:12px; font-weight:600; flex-shrink:0; }
+.pb-a { background:#E3F2FD; color:#1565C0; }
+.pb-b { background:#F0F0F0; color:#212121; }
+.pb-c { background:#E8F5E9; color:#2E7D32; }
+.pb-d { background:#FFEBEE; color:#C62828; }
+
+.empty-state { text-align:center; padding:24px; color:var(--muted); font-size:12px; }
+
+/* ACTION DATE CALCULATOR */
+.calc-wrap { background:var(--gray-50); border-radius:var(--rl); border:0.5px solid var(--border); padding:16px 18px; margin-bottom:14px; }
+.calc-inputs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+.ci label { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; display:block; margin-bottom:3px; }
+.ci input, .ci select { border:0.5px solid var(--border); border-radius:var(--r); padding:6px 9px; font-size:12px; color:var(--text); background:var(--bg); font-family:inherit; width:100%; }
+.ci input:focus, .ci select:focus { outline:none; border-color:var(--blue-md); }
+.calc-btn { background:var(--blue-md); color:#fff; border:none; border-radius:var(--r); padding:8px 20px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; }
+.calc-btn:hover { background:var(--blue-dk); }
+.results-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+.rc { border-radius:var(--r); padding:10px 12px; border:0.5px solid; }
+.rc-horizon { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; }
+.rc-day { font-size:14px; font-weight:500; line-height:1.1; }
+.rc-when { font-size:11px; margin-top:1px; }
+.rc-action { font-size:11px; margin-top:5px; line-height:1.4; }
+.rc-sub { font-size:10px; margin-top:3px; opacity:.75; }
+.t-table { width:100%; border-collapse:collapse; }
+.t-table th { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:6px 10px; background:var(--gray-50); border-bottom:0.5px solid var(--border); text-align:left; }
+.t-table td { padding:9px 10px; border-bottom:0.5px solid var(--border-lt); font-size:12px; vertical-align:top; }
+.t-table tr:last-child td { border-bottom:none; }
+.t-table tr:hover td { background:var(--gray-50); }
+.h-badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+.callout-gray { background:var(--gray-50); border:0.5px solid var(--gray-200); border-radius:var(--r); padding:9px 12px; font-size:12px; color:var(--muted); line-height:1.5; margin-top:8px; }
+
+/* ── SAMS STATION VIEW ── */
+.sams-view { display:grid; grid-template-columns:1fr 190px; min-height:400px; }
+.sams-main { border-right:0.5px solid var(--border); overflow:hidden; }
+.sams-sidebar { overflow-y:auto; max-height:620px; }
+
+.sams-no-station { padding:48px 20px; text-align:center; color:var(--faint); font-size:13px; }
+
+.sams-stn-hdr { padding:10px 14px; border-bottom:0.5px solid var(--border); background:var(--bg); }
+.sams-stn-name { font-size:14px; font-weight:600; color:#1565C0; margin-bottom:2px; }
+.sams-stn-meta { font-size:11px; color:var(--muted); }
+.sams-stn-date-row { display:flex; align-items:center; gap:10px; margin-top:7px; }
+.sams-stn-date-lbl { font-size:12px; color:var(--text); font-weight:500; }
+.sams-shift-badge { margin-left:auto; font-size:11px; color:var(--muted); background:var(--gray-50); border:0.5px solid var(--border); border-radius:4px; padding:2px 8px; }
+
+.roster-section { padding:10px 14px 0; }
+.roster-section-lbl { font-size:11px; font-weight:600; color:#fff; background:#007878; padding:5px 8px; border-radius:4px 4px 0 0; display:flex; align-items:center; justify-content:space-between; }
+.roster-table { width:100%; border-collapse:collapse; font-size:11px; border:0.5px solid var(--border); }
+.roster-table thead th { background:#007878; color:#fff; padding:5px 7px; text-align:left; font-weight:600; font-size:10px; white-space:nowrap; border-right:0.5px solid rgba(255,255,255,0.2); }
+.roster-table thead th:last-child { border-right:none; }
+.roster-table tbody tr { border-bottom:0.5px solid var(--border-lt); }
+.roster-table tbody tr:hover { background:var(--gray-50); }
+.roster-table tbody td { padding:5px 7px; font-size:11px; }
+.roster-table tbody tr.row-wc td { background:#F0FFE8; }
+.roster-empty { text-align:center; color:var(--faint); font-style:italic; padding:20px; }
+
+.roster-footer { display:flex; align-items:center; justify-content:space-between; padding:7px 0 10px; border-top:0.5px solid var(--border-lt); margin-top:2px; }
+.roster-footer-note { font-size:10px; color:var(--faint); padding:2px 0; }
+.sams-btn { font-size:11px; background:var(--gray-50); border:0.5px solid var(--border); border-radius:4px; padding:3px 10px; cursor:pointer; font-family:inherit; }
+.sams-btn:hover { background:var(--gray-100); }
+
+.sams-lower { display:grid; grid-template-columns:auto 1fr 1fr; gap:16px; padding:12px 14px; border-top:0.5px solid var(--border); }
+.staffing-block { }
+.staffing-block h4 { font-size:11px; font-weight:600; margin-bottom:7px; display:flex; align-items:center; gap:5px; }
+.staffing-table { border-collapse:collapse; font-size:11px; }
+.staffing-table th { background:var(--gray-50); padding:4px 10px; font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; border:0.5px solid var(--border); }
+.staffing-table td { padding:5px 10px; border:0.5px solid var(--border); text-align:center; }
+.staffing-table td:first-child { text-align:left; font-weight:500; font-size:11px; }
+.staffing-ok { color:#2E7D32; font-weight:600; }
+.staffing-low { color:#C62828; font-weight:600; }
+
+.collapsible-block { }
+.collapsible-hdr { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; cursor:pointer; padding:4px 0; user-select:none; }
+.collapsible-hdr:hover { color:var(--blue-md); }
+.collapsible-body { font-size:11px; color:var(--faint); font-style:italic; margin-top:6px; padding:8px; background:var(--gray-50); border-radius:var(--r); }
+
+/* STATIONS SIDEBAR */
+.stations-sidebar-hdr { display:grid; grid-template-columns:1fr 28px 28px; background:#007878; color:#fff; padding:5px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; position:sticky; top:0; }
+.stations-sidebar-hdr span:nth-child(2), .stations-sidebar-hdr span:nth-child(3) { text-align:center; }
+.stn-group-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); padding:4px 8px 2px; background:var(--gray-50); border-bottom:0.5px solid var(--border-lt); }
+.stn-row { display:grid; grid-template-columns:1fr 28px 28px; padding:4px 8px; border-bottom:0.5px solid var(--border-lt); cursor:pointer; font-size:11px; line-height:1.3; transition:background .1s; }
+.stn-row:hover { background:var(--blue-lt); }
+.stn-row.stn-selected { background:#007878; color:#fff !important; }
+.stn-row.stn-selected .stn-so, .stn-row.stn-selected .stn-ff { color:#fff !important; }
+.stn-row:focus-visible { outline:2px solid var(--blue-md); outline-offset:-2px; }
+.stn-so, .stn-ff { text-align:center; font-weight:600; font-size:11px; }
+.val-pos { color:#2E7D32; }
+.val-neg { color:#C62828; }
+.val-zero { color:var(--muted); }
+
+/* GLOBAL FOCUS STATES */
+button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--blue-md); outline-offset:2px; }
+
+@media print {
+  body { background:#fff; padding:0; }
+  .no-print { display:none; }
+  @page { margin:12mm; }
+}
+
+@media (max-width:768px) {
+  body { font-size:14px; padding:12px 10px; }
+  .doc-header { flex-direction:column; gap:8px; }
+  .date-main-layout { flex-direction:column; }
+  .cal-col { flex:none; width:100%; }
+  .shifts-grid { grid-template-columns:1fr 1fr; }
+  .priority-headline { grid-template-columns:1fr; }
+  .pri-row { grid-template-columns:24px 56px 80px 60px 1fr; gap:6px; padding:8px 10px; }
+  .pri-row .pri-scenario { display:none; }
+  .list-hdr { grid-template-columns:24px 56px 80px 60px 1fr; }
+  .list-hdr span:last-child { display:none; }
+  .calc-inputs { grid-template-columns:1fr; }
+  .results-grid { grid-template-columns:1fr 1fr; gap:6px; }
+  .sams-view { grid-template-columns:1fr; }
+  .sams-main { border-right:none; border-bottom:1px solid var(--border); }
+  .sams-sidebar { max-height:260px; }
+  .sams-lower { grid-template-columns:1fr; }
+  .shift-detail-body { grid-template-columns:1fr; }
+  .sd-section { border-right:none; border-bottom:1px solid var(--border-lt); }
+  .sd-section:last-child { border-bottom:none; }
+}
+
+@media (max-width:480px) {
+  .results-grid { grid-template-columns:1fr; }
+  .pri-row { grid-template-columns:24px 1fr 1fr; }
+  .pri-row .pri-d1date, .pri-row .pri-num { display:none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-header">
+    <div>
+      <h1>Relief Priority Planner</h1>
+      <p>Select any date — see which upcoming reliefs to action and in what order</p>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:10px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);padding:3px 10px;border-radius:8px;display:inline-block;">DFES 2025–26 Shift Calendar</div>
+    </div>
+  </div>
+
+  <!-- DATE SELECTOR -->
+  <div class="card">
+    <div class="card-hdr">
+      <h2>Select working date</h2>
+      <span class="note" id="date-label"></span>
+    </div>
+    <div class="card-body">
+
+      <!-- Controls row -->
+      <div class="date-controls">
+        <input type="date" id="sel-date" oninput="onDateInput()" aria-label="Select working date">
+        <button class="today-btn" onclick="setToday()" aria-label="Set date to today">Today</button>
+        <div class="compact-platoons" id="compact-platoons" style="display:none;">
+          <span class="cp-label">Day</span>
+          <span class="cp-letter" id="cp-day">—</span>
+          <span class="cp-sep">/</span>
+          <span class="cp-label">Night</span>
+          <span class="cp-letter" id="cp-night">—</span>
+        </div>
+        <button class="run-btn" onclick="run()" aria-label="Run priority analysis">&#9654; Run priority analysis</button>
+      </div>
+
+      <!-- Calendar + Shifts side by side -->
+      <div class="date-main-layout">
+
+        <!-- LEFT: Calendar -->
+        <div class="cal-col">
+          <button class="cal-toggle-btn" id="cal-toggle-btn" onclick="toggleCal()">&#9662; Hide calendar</button>
+          <div class="cal-widget" id="cal-widget">
+          <div class="cal-nav">
+              <button class="cal-nav-lnk" onclick="calMove(-1)" aria-label="Previous month">&lt;Prev</button>
+              <div class="cal-nav-center">
+                <select class="cal-sel" id="cal-month-sel" onchange="calSelChanged()" aria-label="Select month">
+                  <option value="0">January</option><option value="1">February</option>
+                  <option value="2">March</option><option value="3">April</option>
+                  <option value="4">May</option><option value="5">June</option>
+                  <option value="6">July</option><option value="7">August</option>
+                  <option value="8">September</option><option value="9">October</option>
+                  <option value="10">November</option><option value="11">December</option>
+                </select>
+                <select class="cal-sel" id="cal-year-sel" onchange="calSelChanged()" aria-label="Select year"></select>
+                <button class="cal-nav-lnk" onclick="calToday()" aria-label="Go to today">Today</button>
+              </div>
+              <button class="cal-nav-lnk" onclick="calMove(1)" aria-label="Next month">Next&gt;</button>
+            </div>
+            <div class="cal-days-hdr">
+              <div class="cal-day-hdr">Su</div><div class="cal-day-hdr">Mo</div>
+              <div class="cal-day-hdr">Tu</div><div class="cal-day-hdr">We</div>
+              <div class="cal-day-hdr">Th</div><div class="cal-day-hdr">Fr</div>
+              <div class="cal-day-hdr">Sa</div>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-footer">
+              <span class="cal-footer-lbl">Select a date</span>
+              <button class="cal-close-btn" onclick="toggleCal()" aria-label="Close calendar">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Platoons on shift -->
+        <div class="shifts-col" id="shifts-col" style="display:none;">
+          <div class="shifts-col-label">Platoons on shift</div>
+          <div class="shifts-grid" id="shifts-grid"></div>
+
+          <!-- Shift detail placeholder — future feature -->
+          <div class="shift-detail" id="shift-detail" style="display:none;">
+            <div class="shift-detail-hdr">
+              <span id="shift-detail-title">Shift detail</span>
+              <small>— coming soon</small>
+            </div>
+            <div class="shift-detail-body">
+              <div class="sd-section">
+                <div class="sd-section-label">Personnel</div>
+                <div class="sd-empty">Build here</div>
+              </div>
+              <div class="sd-section">
+                <div class="sd-section-label">Vacancies</div>
+                <div class="sd-empty">Build here</div>
+              </div>
+              <div class="sd-section">
+                <div class="sd-section-label">Leave</div>
+                <div class="sd-empty">Build here</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SAMS STATION VIEW -->
+  <div class="card" id="sams-card" style="display:none;">
+    <div class="card-hdr">
+      <h2>Station roster</h2>
+      <span class="note" id="sams-date-hdr"></span>
+    </div>
+    <div class="sams-view">
+
+      <!-- MAIN CONTENT -->
+      <div class="sams-main">
+
+        <!-- No station selected -->
+        <div class="sams-no-station" id="sams-no-station">
+          &#8592; Select a station from the panel to load its roster
+        </div>
+
+        <!-- Station view (shown when station selected) -->
+        <div id="sams-station-view" style="display:none;">
+
+          <!-- Station header -->
+          <div class="sams-stn-hdr">
+            <div class="sams-stn-name" id="sams-stn-name">—</div>
+            <div class="sams-stn-meta" id="sams-stn-meta">—</div>
+            <div class="sams-stn-date-row">
+              <span class="sams-stn-date-lbl" id="sams-stn-date">—</span>
+              <span id="sams-stn-platoons" style="display:flex;gap:4px;align-items:center;font-size:14px;font-weight:700;"></span>
+              <span class="sams-shift-badge" id="sams-stn-shift">—</span>
+            </div>
+          </div>
+
+          <!-- Rostered / On Shift -->
+          <div class="roster-section">
+            <div class="roster-section-lbl">
+              <span>Rostered / On Shift</span>
+              <span style="font-size:10px;font-weight:400;opacity:.8;">Relieved By</span>
+            </div>
+            <table class="roster-table">
+              <thead>
+                <tr>
+                  <th style="min-width:140px;">Name</th>
+                  <th>Staff #</th>
+                  <th>Start</th>
+                  <th>Code</th>
+                  <th style="min-width:160px;">Competency</th>
+                  <th>Avail</th>
+                  <th>End</th>
+                  <th>Code</th>
+                  <th>At</th>
+                  <th>Reason</th>
+                  <th>Name</th>
+                  <th style="width:20px;"></th>
+                </tr>
+              </thead>
+              <tbody id="roster-tbody">
+                <tr><td colspan="12" class="roster-empty">No roster data — to be populated</td></tr>
+              </tbody>
+            </table>
+            <div class="roster-footer">
+              <button class="sams-btn">Submit Roster</button>
+              <span style="font-size:11px;color:var(--muted);">Special Relief Requests: <strong>(none)</strong></span>
+              <button class="sams-btn">Change</button>
+            </div>
+            <div class="roster-footer-note">Last edited by: (none) 00:00</div>
+          </div>
+
+          <!-- Lower section: Approved Staffing + Competencies + Codes -->
+          <div class="sams-lower">
+
+            <div class="staffing-block">
+              <h4>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7 5.5,11 12,3"/></svg>
+                Approved Staffing
+              </h4>
+              <table class="staffing-table">
+                <thead>
+                  <tr><th></th><th>Req'd</th><th>Start</th><th>End</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>SO</td>
+                    <td id="sf-so-req">—</td>
+                    <td id="sf-so-start">—</td>
+                    <td id="sf-so-end">—</td>
+                  </tr>
+                  <tr>
+                    <td>SFF</td>
+                    <td id="sf-sff-req">—</td>
+                    <td id="sf-sff-start">—</td>
+                    <td id="sf-sff-end">—</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:10px;line-height:1.2;">1st/2nd<br>Class FF</td>
+                    <td id="sf-12-req">—</td>
+                    <td id="sf-12-start">—</td>
+                    <td id="sf-12-end">—</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:10px;line-height:1.2;">FF below<br>2nd Class</td>
+                    <td id="sf-b2-req">—</td>
+                    <td id="sf-b2-start">—</td>
+                    <td id="sf-b2-end">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="collapsible-block">
+              <div class="collapsible-hdr" onclick="toggleCollapsible('comp-body','comp-icon')" role="button" tabindex="0" aria-expanded="false" aria-controls="comp-body">
+                <span id="comp-icon">+</span> Competencies for this station
+              </div>
+              <div class="collapsible-body" id="comp-body" style="display:none;">
+                No competency data — to be populated
+              </div>
+            </div>
+
+            <div class="collapsible-block">
+              <div class="collapsible-hdr" onclick="toggleCollapsible('codes-body','codes-icon')" role="button" tabindex="0" aria-expanded="false" aria-controls="codes-body">
+                <span id="codes-icon">+</span> Codes
+              </div>
+              <div class="collapsible-body" id="codes-body" style="display:none;">
+                No codes data — to be populated
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- STATIONS SIDEBAR -->
+      <div class="sams-sidebar">
+        <div class="stations-sidebar-hdr">
+          <span>Stations</span><span>SO</span><span>FF</span>
+        </div>
+        <div id="stations-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PRIORITY HEADLINE -->
+  <div class="card" id="headline-card" style="display:none;">
+    <div class="card-hdr"><h2>Priority actions for this date</h2><span class="note">Based on notification windows — §6.2.5 &amp; §6.2.6</span></div>
+    <div class="card-body">
+      <div class="priority-headline" id="priority-headline"></div>
+      <div id="headline-callout"></div>
+    </div>
+  </div>
+
+  <!-- FULL LIST -->
+  <div class="card" id="list-card" style="display:none;">
+    <div class="card-hdr"><h2>All upcoming D1 start dates — next 70 days</h2><span class="note">Sorted by urgency</span></div>
+    <div class="card-body">
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#A32D2D;"></div>Mandatory (T−16)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EF9F27;"></div>Tier 4 — any MRA (T−24)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#7F77DD;"></div>Tier 3 — associated (T−32)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#185FA5;"></div>Tier 2 — partnering (T−40)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#1D9E75;"></div>Tier 1 — home station (T−48)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--gray-200);"></div>Too early / prior shift only</div>
+      </div>
+      <div class="list-hdr">
+        <span>#</span>
+        <span>Days away</span>
+        <span>Relief D1 date</span>
+        <span>Platoon</span>
+        <span>Action required</span>
+        <span>Scenario notes</span>
+      </div>
+      <div class="pri-list" id="pri-list"></div>
+    </div>
+  </div>
+
+  <!-- ACTION DATE CALCULATOR -->
+  <div class="card">
+    <div class="card-hdr">
+      <div style="width:22px;height:22px;border-radius:50%;background:var(--teal-lt);color:var(--teal-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">C</div>
+      <h2>Action date calculator — enter a relief start date to get your Mondays</h2>
+    </div>
+    <div style="padding:16px 18px;">
+      <div class="calc-wrap">
+        <div class="calc-inputs">
+          <div class="ci"><label for="rel-start">Relief D1 start date</label><input type="date" id="rel-start"></div>
+          <div class="ci"><label for="calc-platoon">Platoon (optional)</label>
+            <select id="calc-platoon">
+              <option value="">— Optional —</option>
+              <option value="A">Platoon A</option>
+              <option value="B">Platoon B</option>
+              <option value="C">Platoon C</option>
+              <option value="D">Platoon D</option>
+            </select>
+          </div>
+          <div class="ci"><label for="vac-s">Vacancy station (optional)</label><input type="text" id="vac-s" placeholder="e.g. 006 – Midland"></div>
+        </div>
+        <button class="calc-btn" onclick="doCalc()">Calculate my planning Mondays</button>
+        <div id="c-results" style="display:none;">
+          <div style="height:0.5px;background:var(--border-lt);margin:14px 0;"></div>
+          <div id="c-summary" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+          <div class="results-grid" id="c-grid"></div>
+          <div id="c-note" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <span class="small-label">Mon–Fri tier action table</span>
+      <table class="t-table">
+        <thead>
+          <tr>
+            <th style="width:80px;">Days to D1</th>
+            <th style="width:100px;">Action Monday</th>
+            <th style="width:80px;">Tier</th>
+            <th>What to do on that Monday</th>
+            <th style="width:130px;">If still unfilled</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="h-badge" style="background:var(--teal-lt);color:var(--teal-dk);">T−48</span></td>
+            <td style="font-size:11px;color:var(--muted);">Mon ≤ T−48</td>
+            <td><span class="h-badge" style="background:var(--teal-lt);color:var(--teal-dk);">Tier 1</span></td>
+            <td>Advertise on SAMS — home relief station. 48-day notification window opens.</td>
+            <td style="font-size:11px;color:var(--muted);">Next Monday → Tier 2</td>
+          </tr>
+          <tr>
+            <td><span class="h-badge" style="background:var(--blue-lt);color:var(--blue-dk);">T−40</span></td>
+            <td style="font-size:11px;color:var(--muted);">Mon ≤ T−40</td>
+            <td><span class="h-badge" style="background:var(--blue-lt);color:var(--blue-dk);">Tier 2</span></td>
+            <td>Check nominations. If unfilled — expand to partnering stations on SAMS.</td>
+            <td style="font-size:11px;color:var(--muted);">Next Monday → Tier 3</td>
+          </tr>
+          <tr>
+            <td><span class="h-badge" style="background:var(--purple-lt);color:var(--purple-dk);">T−32</span></td>
+            <td style="font-size:11px;color:var(--muted);">Mon ≤ T−32</td>
+            <td><span class="h-badge" style="background:var(--purple-lt);color:var(--purple-dk);">Tier 3</span></td>
+            <td>Check nominations. If unfilled — expand to associated stations on SAMS.</td>
+            <td style="font-size:11px;color:var(--muted);">Next Monday → Tier 4</td>
+          </tr>
+          <tr>
+            <td><span class="h-badge" style="background:var(--amber-lt);color:var(--amber-dk);">T−24</span></td>
+            <td style="font-size:11px;color:var(--muted);">Mon ≤ T−24</td>
+            <td><span class="h-badge" style="background:var(--amber-lt);color:var(--amber-dk);">Tier 4</span></td>
+            <td>Check nominations. If unfilled — open to any MRA station. Begin scanning Scenario B candidates now.</td>
+            <td style="font-size:11px;color:var(--muted);">Next Monday → Mandatory</td>
+          </tr>
+          <tr style="background:#FFF8F8;">
+            <td><span class="h-badge" style="background:var(--red-lt);color:var(--red-dk);">T−16</span></td>
+            <td style="font-size:11px;font-weight:600;color:var(--red-dk);">Mon ≤ T−16</td>
+            <td><span class="h-badge" style="background:var(--red-lt);color:var(--red-dk);">Mandatory</span></td>
+            <td style="color:var(--red-dk);"><strong>Allocate today.</strong> Voluntary window closed. Scenario B first — already out, no prior shift required.</td>
+            <td style="font-size:11px;color:var(--red-dk);">Friday prior shift confirm</td>
+          </tr>
+          <tr>
+            <td><span class="h-badge" style="background:var(--amber-lt);color:var(--amber-dk);">T−5</span></td>
+            <td style="font-size:11px;color:var(--muted);">Preceding Friday</td>
+            <td><span class="h-badge" style="background:var(--amber-lt);color:var(--amber-dk);">Prior shift</span></td>
+            <td>Confirm logistics. Scenario A: N2 at home this weekend. Scenario B: N2 at current station — no home return.</td>
+            <td style="font-size:11px;color:var(--muted);">D1 — relief starts</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- HOW TO READ -->
+  <div class="card no-print">
+    <div class="card-hdr"><h2>How to read this</h2></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Tier windows</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#FCEBEB;color:#A32D2D;border:0.5px solid #F09595;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">16 days</span>Mandatory allocation — voluntary window closed. Allocate today.</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#FAEEDA;color:#854F0B;border:0.5px solid #FAC775;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">17–24 days</span>Tier 4 — last voluntary window. Open to any MRA station.</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#EEEDFE;color:#534AB7;border:0.5px solid #AFA9EC;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">25–32 days</span>Tier 3 — open to associated stations.</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#E6F1FB;color:#185FA5;border:0.5px solid #85B7EB;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">33–40 days</span>Tier 2 — open to partnering stations.</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#E1F5EE;color:#0F6E56;border:0.5px solid #5DCAA5;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">41–48 days</span>Tier 1 — advertise to home station. Optimal window.</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="background:#F1EFE8;color:#5F5E5A;border:0.5px solid #D3D1C7;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;">49+ days</span>Not yet in window — identify and plan only.</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Shift cycle</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+            Each platoon (A, B, C, D) works an 8-day cycle:<br>
+            Day 1 = D1 (1st day shift) · Day 2 = D2 (2nd day shift)<br>
+            Day 3 = N1 (1st night shift) · Day 4 = N2 (2nd night shift)<br>
+            Days 5–8 = Off<br><br>
+            N2 falls 5 days before the following D1. This is the prior shift window — the reliever must work this shift at their home station (Scenario A) or current relief station (Scenario B) before the relief commences.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Anchor D1 dates — verified from 2025-26 UFU WA shift calendar
+const ANCHORS = {
+  A: new Date('2025-01-06'),
+  B: new Date('2025-01-04'),
+  C: new Date('2025-01-02'),
+  D: new Date('2024-12-31')
+};
+const SHIFT_LABELS = ['D1 — 1st day','D2 — 2nd day','N1 — 1st night','N2 — 2nd night','Off','Off','Off','Off'];
+const SHIFT_SHORT  = ['D1','D2','N1','N2','Off','Off','Off','Off'];
+const PLAT_COLORS  = { A:'pb-a', B:'pb-b', C:'pb-c', D:'pb-d' };
+
+function daysDiff(a, b) {
+  const msPerDay = 86400000;
+  return Math.round((b - a) / msPerDay);
+}
+function getPosition(platoon, date) {
+  const diff = daysDiff(ANCHORS[platoon], date);
+  return ((diff % 8) + 8) % 8;
+}
+function getShiftInfo(platoon, date) {
+  const pos = getPosition(platoon, date);
+  return { pos, label: SHIFT_LABELS[pos], short: SHIFT_SHORT[pos], isWorking: pos < 4, isDay: pos < 2, isNight: pos === 2 || pos === 3, isOff: pos >= 4 };
+}
+// Returns the platoon letter (A/B/C/D) working the DAY shift on a given date
+function getDayPlat(date) {
+  for (const p of ['A','B','C','D']) {
+    const pos = getPosition(p, date);
+    if (pos === 0 || pos === 1) return p;
+  }
+  return '?';
+}
+// Returns the platoon letter (A/B/C/D) working the NIGHT shift on a given date
+function getNightPlat(date) {
+  for (const p of ['A','B','C','D']) {
+    const pos = getPosition(p, date);
+    if (pos === 2 || pos === 3) return p;
+  }
+  return '?';
+}
+function nextD1(platoon, fromDate) {
+  const pos = getPosition(platoon, fromDate);
+  const daysToNext = pos === 0 ? 0 : 8 - pos;
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + daysToNext);
+  return { date: d, daysAway: daysToNext };
+}
+function getAllUpcomingD1s(fromDate, daysAhead) {
+  const result = [];
+  for (const plat of ['A','B','C','D']) {
+    const first = nextD1(plat, fromDate);
+    for (let d = first.daysAway; d <= daysAhead; d += 8) {
+      const dt = new Date(fromDate);
+      dt.setDate(dt.getDate() + d);
+      result.push({ platoon: plat, date: dt, daysAway: d });
+    }
+  }
+  return result.sort((a, b) => a.daysAway - b.daysAway);
+}
+function getTier(daysAway) {
+  if (daysAway > 48)  return { code:'plan',  label:'Too early', action:'Identify and note — not yet in advertising window', color:'#5F5E5A', bg:'#F1EFE8', bd:'#D3D1C7', priority:0, rowClass:'' };
+  if (daysAway >= 41) return { code:'t1',    label:'Tier 1',    action:'Advertise NOW — home relief station (48-day notification)', color:'#0F6E56', bg:'#E1F5EE', bd:'#5DCAA5', priority:3, rowClass:'optimal' };
+  if (daysAway >= 33) return { code:'t2',    label:'Tier 2',    action:'Expand to partnering stations if Tier 1 unfilled', color:'#185FA5', bg:'#E6F1FB', bd:'#85B7EB', priority:2, rowClass:'' };
+  if (daysAway >= 25) return { code:'t3',    label:'Tier 3',    action:'Expand to associated stations if Tier 2 unfilled', color:'#534AB7', bg:'#EEEDFE', bd:'#AFA9EC', priority:1, rowClass:'' };
+  if (daysAway >= 17) return { code:'t4',    label:'Tier 4',    action:'Last voluntary window — open to any MRA station', color:'#854F0B', bg:'#FAEEDA', bd:'#FAC775', priority:4, rowClass:'' };
+  if (daysAway === 16) return { code:'mand',  label:'MANDATORY', action:'ALLOCATE TODAY — voluntary window closes at 16 days', color:'#A32D2D', bg:'#FCEBEB', bd:'#F09595', priority:6, rowClass:'urgent' };
+  if (daysAway >= 5)  return { code:'mand',  label:'OVERDUE',   action:'Must allocate immediately — already past 16-day gate', color:'#A32D2D', bg:'#FCEBEB', bd:'#F09595', priority:7, rowClass:'urgent' };
+  if (daysAway >= 0)  return { code:'prior', label:'Prior shift',action:'N2 logistics only — confirm Scenario A or B', color:'#633806', bg:'#FAEEDA', bd:'#FAC775', priority:5, rowClass:'' };
+  return null;
+}
+function fmtDate(d) {
+  return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+function fmtShort(d) {
+  return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
+}
+
+function setToday() {
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,'0');
+  const dd = String(today.getDate()).padStart(2,'0');
+  selectedDate = `${y}-${m}-${dd}`;
+  document.getElementById('sel-date').value = selectedDate;
+  renderCal();
+  onDateInput();
+}
+
+// Separate: date input updates shifts panel + calendar highlight but does NOT run analysis
+function onDateInput() {
+  const val = document.getElementById('sel-date').value;
+  if (!val) return;
+  const date = new Date(val + 'T00:00:00');
+  updateShiftDisplay(date);
+  // Sync calendar to show the right month
+  calYear = date.getFullYear();
+  calMonth = date.getMonth();
+  selectedDate = val;
+  renderCal();
+}
+
+function updateShiftDisplay(date) {
+  // Date label in header
+  document.getElementById('date-label').textContent = fmtDate(date);
+
+  // Compact platoon display
+  const dayP = getDayPlat(date);
+  const nightP = getNightPlat(date);
+  const cpDay = document.getElementById('cp-day');
+  const cpNight = document.getElementById('cp-night');
+  cpDay.textContent = dayP;
+  cpDay.className = 'cp-letter tc-' + dayP.toLowerCase();
+  cpNight.textContent = nightP;
+  cpNight.className = 'cp-letter tc-' + nightP.toLowerCase();
+  document.getElementById('compact-platoons').style.display = 'flex';
+
+  // Platoon cards — build with array to avoid repeated DOM re-parsing
+  const grid = document.getElementById('shifts-grid');
+  const cardParts = [];
+  for (const plat of ['A','B','C','D']) {
+    const info = getShiftInfo(plat, date);
+    const cls = info.isOff ? 'pc-off' : 'pc-' + plat.toLowerCase();
+    cardParts.push(`<div class="shift-card ${cls}">
+      <div class="plat">${plat}</div>
+      <div class="type">${info.short}</div>
+      <div class="desc">${info.label}</div>
+    </div>`);
+  }
+  grid.innerHTML = cardParts.join('');
+  document.getElementById('shifts-col').style.display = 'block';
+
+  // Show SAMS card and render stations list
+  const samsCard = document.getElementById('sams-card');
+  samsCard.style.display = 'block';
+  document.getElementById('sams-date-hdr').textContent = fmtDate(date);
+  renderStationsList();
+  // If a station was already selected, refresh its header dates
+  if (selectedStation) loadStationView(selectedStation);
+}
+
+function run() {
+  const val = document.getElementById('sel-date').value;
+  if (!val) { alert('Please select a date first.'); return; }
+  const date = new Date(val + 'T00:00:00');
+
+  // Ensure shift display is updated
+  updateShiftDisplay(date);
+
+  // Get all D1s
+  const d1s = getAllUpcomingD1s(date, 70);
+
+  // Priority headline
+  const mandatory = d1s.find(d => d.daysAway >= 5 && d.daysAway <= 16);
+  const t4 = d1s.find(d => d.daysAway >= 17 && d.daysAway <= 24);
+  const t1 = d1s.find(d => d.daysAway >= 41 && d.daysAway <= 48);
+  const priorShift = d1s.find(d => d.daysAway >= 0 && d.daysAway <= 4);
+
+  const hl = document.getElementById('priority-headline');
+  const hlParts = [];
+
+  // Card 1: Most urgent
+  let urgent = mandatory || t4;
+  if (urgent) {
+    const tier = getTier(urgent.daysAway);
+    hlParts.push(`<div class="ph-card" style="background:${tier.bg};border-color:${tier.bd};">
+      <div class="ph-label" style="color:${tier.color};">${tier.code === 'mand' ? 'Urgent — allocate today' : 'Most urgent this week'}</div>
+      <div class="ph-main" style="color:${tier.color};">Platoon ${urgent.platoon} — ${urgent.daysAway} days</div>
+      <div class="ph-sub" style="color:${tier.color};">D1 on ${fmtShort(urgent.date)}<br>${tier.action}</div>
+    </div>`);
+  } else if (priorShift) {
+    hlParts.push(`<div class="ph-card" style="background:var(--amber-lt);border-color:var(--amber-bd);">
+      <div class="ph-label" style="color:var(--amber-dk);">Prior shift logistics</div>
+      <div class="ph-main" style="color:var(--amber-dk);">Platoon ${priorShift.platoon} — ${priorShift.daysAway} days</div>
+      <div class="ph-sub" style="color:var(--amber-dk);">D1 on ${fmtShort(priorShift.date)}<br>Confirm N2 prior shift arrangements now</div>
+    </div>`);
+  } else {
+    hlParts.push(`<div class="ph-card" style="background:var(--gray-50);border-color:var(--gray-200);">
+      <div class="ph-label" style="color:var(--muted);">No urgent actions</div>
+      <div class="ph-main" style="color:var(--muted);">All clear</div>
+      <div class="ph-sub" style="color:var(--muted);">No reliefs at mandatory gate. Check Tier 4 window.</div>
+    </div>`);
+  }
+
+  // Card 2: Closest you can still fill voluntarily
+  const closestVol = d1s.find(d => d.daysAway >= 17);
+  if (closestVol) {
+    const tier = getTier(closestVol.daysAway);
+    hlParts.push(`<div class="ph-card" style="background:${tier.bg};border-color:${tier.bd};">
+      <div class="ph-label" style="color:${tier.color};">Closest voluntary fill</div>
+      <div class="ph-main" style="color:${tier.color};">Platoon ${closestVol.platoon} — ${closestVol.daysAway} days</div>
+      <div class="ph-sub" style="color:${tier.color};">D1 on ${fmtShort(closestVol.date)}<br>${tier.label}: ${tier.action}</div>
+    </div>`);
+  }
+
+  // Card 3: Optimal — Tier 1 to advertise today
+  if (t1) {
+    hlParts.push(`<div class="ph-card" style="background:var(--teal-lt);border-color:var(--teal-bd);">
+      <div class="ph-label" style="color:var(--teal-dk);">Optimal — advertise today</div>
+      <div class="ph-main" style="color:var(--teal-dk);">Platoon ${t1.platoon} — ${t1.daysAway} days</div>
+      <div class="ph-sub" style="color:var(--teal-dk);">D1 on ${fmtShort(t1.date)}<br>Tier 1: advertise to home station on SAMS now</div>
+    </div>`);
+  } else {
+    const soonT1 = d1s.find(d => d.daysAway > 48);
+    if (soonT1) {
+      const daysUntilT1 = soonT1.daysAway - 48;
+      hlParts.push(`<div class="ph-card" style="background:var(--gray-50);border-color:var(--gray-200);">
+        <div class="ph-label" style="color:var(--muted);">Next Tier 1 window</div>
+        <div class="ph-main" style="color:var(--muted);">Platoon ${soonT1.platoon} — in ${daysUntilT1} days</div>
+        <div class="ph-sub" style="color:var(--muted);">D1 on ${fmtShort(soonT1.date)}<br>Enters Tier 1 window in ${daysUntilT1} days</div>
+      </div>`);
+    }
+  }
+
+  hl.innerHTML = hlParts.join('');
+
+  // Callout
+  const hlCallout = document.getElementById('headline-callout');
+  if (mandatory) {
+    hlCallout.innerHTML = `<div class="callout red" style="margin-top:10px;">
+      <strong>Platoon ${mandatory.platoon} D1 is ${mandatory.daysAway === 16 ? 'exactly at' : 'inside'} the 16-day gate</strong> — mandatory allocation must happen today. Check for Scenario B candidates (relievers already posted out) first. If none, allocate from Relief Pool. Complete and document before end of day.
+    </div>`;
+  } else if (t4) {
+    hlCallout.innerHTML = `<div class="callout amber" style="margin-top:10px;">
+      <strong>Platoon ${t4.platoon} D1 (${t4.daysAway} days) is in the Tier 4 window</strong> — last voluntary opportunity. Open advertisement to any MRA station now. If this goes unfilled, you'll reach the 16-day mandatory gate on ${fmtShort(new Date(date.getTime() + (t4.daysAway-16)*86400000))}.
+    </div>`;
+  } else if (t1) {
+    hlCallout.innerHTML = `<div class="callout blue" style="margin-top:10px;">
+      <strong>Platoon ${t1.platoon} D1 (${t1.daysAway} days) is in the Tier 1 window</strong> — most efficient outcome. Advertise to home station on SAMS today. This is the optimal starting point — you have up to 32 days of voluntary fill window before the mandatory gate.
+    </div>`;
+  } else {
+    hlCallout.innerHTML = '';
+  }
+
+  document.getElementById('headline-card').style.display = 'block';
+
+  // Full list — build with array to avoid repeated DOM re-parsing in loop
+  const list = document.getElementById('pri-list');
+  const listParts = [];
+  let rank = 1;
+
+  // Sort: urgent first (lowest daysAway that's still ≥0), then by tier priority
+  const sorted = [...d1s].sort((a, b) => {
+    const ta = getTier(a.daysAway);
+    const tb = getTier(b.daysAway);
+    if (!ta || !tb) return a.daysAway - b.daysAway;
+    // Higher priority number = show first (mand=7, t4=4, t1=3, t2=2, t3=1, plan=0)
+    if (tb.priority !== ta.priority) return tb.priority - ta.priority;
+    return a.daysAway - b.daysAway;
+  });
+
+  for (const item of sorted) {
+    const tier = getTier(item.daysAway);
+    if (!tier) continue;
+
+    // N2 date (5 days before D1)
+    const n2Date = new Date(item.date);
+    n2Date.setDate(n2Date.getDate() - 5);
+
+    // Scenario note
+    let scenNote = '';
+    if (tier.code === 'mand' || tier.code === 't4' || tier.code === 't3' || tier.code === 't2' || tier.code === 't1') {
+      scenNote = `N2 prior shift: ${fmtShort(n2Date)}`;
+    } else if (tier.code === 'prior') {
+      scenNote = `N2 is today/imminent`;
+    }
+
+    listParts.push(`<div class="pri-row ${tier.rowClass}">
+      <span class="pri-num">${rank}</span>
+      <span class="pri-days" style="color:${tier.color};">${item.daysAway === 0 ? 'Today' : item.daysAway + 'd'}</span>
+      <span class="pri-d1date">${fmtShort(item.date)}</span>
+      <span><span class="plat-badge ${PLAT_COLORS[item.platoon]}">${item.platoon}</span></span>
+      <span class="pri-action">
+        <span class="tier-badge" style="background:${tier.bg};color:${tier.color};border:0.5px solid ${tier.bd};">${tier.label}</span>
+        &nbsp;${tier.action}
+      </span>
+      <span class="pri-scenario">${scenNote}</span>
+    </div>`);
+    rank++;
+  }
+
+  list.innerHTML = listParts.join('');
+  document.getElementById('list-card').style.display = 'block';
+}
+
+// ── SAMS STATION VIEW ──
+const STATIONS_LIST = [
+  // Metro
+  {n:'Armadale',g:'metro'},{n:'Belmont',g:'metro'},{n:'Butler',g:'metro'},
+  {n:'Canning Vale',g:'metro'},{n:'Cardup',g:'metro'},{n:'Claremont',g:'metro'},
+  {n:'Cockburn',g:'metro'},{n:'Daglish',g:'metro'},{n:'Duncraig',g:'metro'},
+  {n:'Ellenbrook',g:'metro'},{n:'Fremantle',g:'metro'},{n:'Hope Valley',g:'metro'},
+  {n:'Joondalup',g:'metro'},{n:'Kensington',g:'metro'},{n:'Kiara',g:'metro'},
+  {n:'Maddington',g:'metro'},{n:'Malaga',g:'metro'},{n:'Mandurah',g:'metro'},
+  {n:'Midland',g:'metro'},{n:'Murdoch',g:'metro'},{n:'Osborne Park',g:'metro'},
+  {n:'Perth',g:'metro'},{n:'Rockingham',g:'metro'},{n:'Success',g:'metro'},
+  {n:'Vincent',g:'metro'},{n:'Wangara',g:'metro'},{n:'Welshpool',g:'metro'},
+  // Country
+  {n:'Albany',g:'country'},{n:'Bunbury',g:'country'},
+  {n:'Geraldton',g:'country'},{n:'Kalgoorlie',g:'country'},
+  // Other
+  {n:'ComCen',g:'other'},{n:'State Operations Centre',g:'other'},
+  {n:'Air Services',g:'other'},{n:'Firefighter Recruitment',g:'other'},
+  {n:'Forrestfield Academy',g:'other'},{n:'Metro Operations Centre',g:'other'},
+  {n:'RO Metro North Coastal',g:'other'},{n:'RO Metro North East',g:'other'},
+  {n:'RO Metro South Coastal',g:'other'},{n:'RO Metro South East',g:'other'},
+  {n:'Station Officer Training',g:'other'},{n:'USAR',g:'other'},
+  {n:'BCoE',g:'other'},{n:'Metro Central',g:'other'},
+  {n:'SOC Activated',g:'other'},{n:'Overtime',g:'other'},
+];
+
+// Station detail data — populate with real data when available
+const STATION_DATA = {
+  'Wangara': { code:'s008', phone:'64040410', address:'24 Prindiville Drive, 6065' },
+  // All others blank until data is provided
+};
+
+let selectedStation = null;
+
+function renderStationsList() {
+  const list = document.getElementById('stations-list');
+  if (!list) return;
+  const groups = [{key:'metro',label:'Metropolitan'},{key:'country',label:'Country'},{key:'other',label:'Other'}];
+  const parts = [];
+  for (const grp of groups) {
+    const stns = STATIONS_LIST.filter(s => s.g === grp.key);
+    if (!stns.length) continue;
+    parts.push(`<div class="stn-group-lbl">${grp.label}</div>`);
+    for (const stn of stns) {
+      const sel = selectedStation === stn.n ? ' stn-selected' : '';
+      // SO and FF values — placeholder 0 until data populated
+      const so = 0, ff = 0;
+      const soClass = so > 0 ? 'val-pos' : so < 0 ? 'val-neg' : 'val-zero';
+      const ffClass = ff > 0 ? 'val-pos' : ff < 0 ? 'val-neg' : 'val-zero';
+      const soStr = so > 0 ? '+'+so : so === 0 ? '0' : String(so);
+      const ffStr = ff > 0 ? '+'+ff : ff === 0 ? '0' : String(ff);
+      const escapedName = stn.n.replace(/'/g, '&#39;');
+      parts.push(`<div class="stn-row${sel}" onclick="selectStation('${escapedName}')">
+        <span>${stn.n}</span>
+        <span class="stn-so ${sel?'':soClass}">${soStr}</span>
+        <span class="stn-ff ${sel?'':ffClass}">${ffStr}</span>
+      </div>`);
+    }
+  }
+  list.innerHTML = parts.join('');
+}
+
+function selectStation(name) {
+  selectedStation = name;
+  renderStationsList();
+  loadStationView(name);
+}
+
+function loadStationView(name) {
+  const detail = STATION_DATA[name] || {};
+  const code = detail.code || '—';
+  const phone = detail.phone ? 'Ph: ' + detail.phone : '';
+  const address = detail.address || '—';
+
+  document.getElementById('sams-stn-name').textContent = name + ' Fire Station (' + code + ')';
+  document.getElementById('sams-stn-meta').textContent = (phone ? phone + '  |  ' : '') + address;
+
+  const val = document.getElementById('sel-date').value;
+  if (val) {
+    const date = new Date(val + 'T00:00:00');
+    const dayP = getDayPlat(date);
+    const nightP = getNightPlat(date);
+    document.getElementById('sams-stn-date').textContent =
+      date.toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'});
+    document.getElementById('sams-stn-platoons').innerHTML =
+      `<span class="tc-${dayP.toLowerCase()}" style="font-size:15px;">${dayP}</span>` +
+      `<span style="font-size:12px;color:var(--faint);margin:0 1px;">|</span>` +
+      `<span class="tc-${nightP.toLowerCase()}" style="font-size:15px;">${nightP}</span>`;
+    document.getElementById('sams-stn-shift').textContent = 'Platoon ' + dayP + ' 08:00–18:00';
+  }
+
+  document.getElementById('sams-no-station').style.display = 'none';
+  document.getElementById('sams-station-view').style.display = 'block';
+  document.getElementById('sams-card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function toggleCollapsible(bodyId, iconId) {
+  const body = document.getElementById(bodyId);
+  const icon = document.getElementById(iconId);
+  if (!body || !icon) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  icon.textContent = open ? '+' : '−';
+}
+
+// ── ACTION DATE CALCULATOR ──
+function prevMon(d){const day=d.getDay(),diff=day===0?6:day-1,r=new Date(d);r.setDate(r.getDate()-diff);return r;}
+function fmtFull(d){return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
+function fmtShortC(d){return d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});}
+function fromNowC(d){const t=new Date();t.setHours(0,0,0,0);const diff=Math.round((d-t)/86400000);if(diff===0)return'Today';if(diff<0)return Math.abs(diff)+' days ago';return'In '+diff+' days';}
+function addDaysC(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+
+const CALC_TIERS=[
+  {days:48,label:'T−48',tier:'Tier 1',action:'Advertise on SAMS — home relief station',col:'#0F6E56',bg:'#E1F5EE',bd:'#5DCAA5'},
+  {days:40,label:'T−40',tier:'Tier 2',action:'If unfilled — expand to partnering stations',col:'#185FA5',bg:'#E6F1FB',bd:'#85B7EB'},
+  {days:32,label:'T−32',tier:'Tier 3',action:'If unfilled — expand to associated stations',col:'#534AB7',bg:'#EEEDFE',bd:'#AFA9EC'},
+  {days:24,label:'T−24',tier:'Tier 4',action:'If unfilled — any MRA station. Scan Scenario B.',col:'#854F0B',bg:'#FAEEDA',bd:'#FAC775'},
+  {days:16,label:'T−16',tier:'MANDATORY',action:'ALLOCATE TODAY. Voluntary closed.',col:'#A32D2D',bg:'#FCEBEB',bd:'#F09595'},
+  {days:5, label:'Prior shift',tier:'N2 logistics',action:'Confirm Scenario A or B prior shift.',col:'#633806',bg:'#FAEEDA',bd:'#FAC775'},
+];
+
+function doCalc(){
+  const v=document.getElementById('rel-start').value;
+  if(!v){alert('Please enter a relief start date.');return;}
+  const D1=new Date(v+'T00:00:00');
+  const plat=document.getElementById('calc-platoon').value;
+  const stn=document.getElementById('vac-s').value;
+  document.getElementById('c-summary').textContent='Relief D1: '+fmtFull(D1)+(plat?' — Platoon '+plat:'')+(stn?' — '+stn:'');
+  const grid=document.getElementById('c-grid');
+  grid.innerHTML='';
+  CALC_TIERS.forEach(t=>{
+    const target=addDaysC(D1,-t.days);
+    let actionDay, actionLabel;
+    if(t.days===5){
+      const prevFri=new Date(D1);
+      const dow=D1.getDay();
+      // days to go back from D1 to land on the preceding Friday
+      // Sun(0)→2, Mon(1)→3, Tue(2)→4, Wed(3)→5, Thu(4)→6, Fri(5)→7, Sat(6)→1
+      const daysToFri=((dow+1)%7)+1;
+      prevFri.setDate(prevFri.getDate()-daysToFri);
+      actionDay=prevFri;
+      actionLabel='Friday '+fmtShortC(prevFri);
+    } else {
+      actionDay=prevMon(target);
+      actionLabel='Monday '+fmtShortC(actionDay);
+    }
+    const card=document.createElement('div');
+    card.className='rc';
+    card.style.cssText=`background:${t.bg};border-color:${t.bd};`;
+    card.innerHTML=`<div class="rc-horizon" style="color:${t.col};">${t.label} &nbsp;&middot;&nbsp; ${t.tier}</div>
+      <div class="rc-day" style="color:${t.col};">${actionLabel}</div>
+      <div class="rc-when" style="color:${t.col};">${fromNowC(actionDay)}</div>
+      <div class="rc-action" style="color:${t.col};">${t.action}</div>
+      <div class="rc-sub" style="color:${t.col};">${t.days===5?'N2 prior shift window':'Target date: '+fmtFull(target)}</div>`;
+    grid.appendChild(card);
+  });
+  const n2=addDaysC(D1,-5);
+  document.getElementById('c-note').innerHTML=`<div class="callout-gray">
+    <strong>N2 prior shift date:</strong> ${fmtFull(n2)} — 5 days before D1.
+    Scenario A: reliever works this shift at their home station to collect PPC. 4 off days to travel.
+    Scenario B: reliever works this shift at their current relief station and travels directly to new station.
+  </div>`;
+  document.getElementById('c-results').style.display='block';
+}
+
+// ── CALENDAR STATE ──
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth(), selectedDate = null;
+let calOpen = true;
+
+function toggleCal() {
+  calOpen = !calOpen;
+  document.getElementById('cal-widget').style.display = calOpen ? 'block' : 'none';
+  document.getElementById('cal-toggle-btn').textContent = calOpen ? '▾ Hide calendar' : '▸ Show calendar';
+}
+
+function calMove(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCal();
+}
+function calToday() {
+  const t = new Date();
+  calYear = t.getFullYear();
+  calMonth = t.getMonth();
+  renderCal();
+}
+
+function renderCal() {
+  // Sync month select
+  const mSel = document.getElementById('cal-month-sel');
+  const ySel = document.getElementById('cal-year-sel');
+  if (!mSel || !ySel) return;
+
+  mSel.value = calMonth;
+
+  // Build year options dynamically from current year
+  if (ySel.options.length === 0) {
+    const thisYear = new Date().getFullYear();
+    for (let y = thisYear - 1; y <= thisYear + 3; y++) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      ySel.appendChild(opt);
+    }
+  }
+  ySel.value = calYear;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay  = new Date(calYear, calMonth+1, 0);
+  const startDow = firstDay.getDay(); // 0=Sun
+
+  const grid = document.getElementById('cal-grid');
+  const parts = [];
+
+  // Leading empty cells
+  for (let i = 0; i < startDow; i++) {
+    parts.push('<div class="cal-cell cal-empty"></div>');
+  }
+
+  // Day cells — SAMS format: [colored plat letter] [date] [colored plat letter] all inline
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const cellDate = new Date(calYear, calMonth, d);
+    const dayP  = getDayPlat(cellDate);
+    const nightP = getNightPlat(cellDate);
+    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isToday    = cellDate.getTime() === today.getTime();
+    const isSelected = dateStr === selectedDate;
+
+    let cls = 'cal-cell';
+    if (isSelected)   cls += ' cal-selected';
+    else if (isToday) cls += ' cal-today';
+
+    parts.push(`<div class="${cls}" onclick="calSelectDate('${dateStr}')"><span class="cal-plat-day tc-${dayP.toLowerCase()}">${dayP}</span><span class="cal-dn">${d}</span><span class="cal-plat-night tc-${nightP.toLowerCase()}">${nightP}</span></div>`);
+  }
+
+  // Trailing empty cells
+  const totalCells = startDow + lastDay.getDate();
+  const rem = totalCells % 7;
+  if (rem > 0) {
+    for (let i = 0; i < 7 - rem; i++) {
+      parts.push('<div class="cal-cell cal-empty"></div>');
+    }
+  }
+
+  grid.innerHTML = parts.join('');
+}
+
+function calSelChanged() {
+  calMonth = parseInt(document.getElementById('cal-month-sel').value);
+  calYear  = parseInt(document.getElementById('cal-year-sel').value);
+  renderCal();
+}
+
+function calSelectDate(dateStr) {
+  selectedDate = dateStr;
+  document.getElementById('sel-date').value = dateStr;
+  const date = new Date(dateStr + 'T00:00:00');
+  updateShiftDisplay(date);
+  // Show shift detail placeholder
+  document.getElementById('shift-detail-title').textContent =
+    'Shift detail — ' + date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('shift-detail').style.display = 'block';
+  // Re-render to update highlight
+  renderCal();
+  // Auto-run priority analysis when date is selected from calendar
+  run();
+}
+
+// Auto-run on today
+setToday();
+</script>
+</body>
+</html>
